@@ -1,6 +1,6 @@
 use std::io::{Cursor, Read};
 
-fn load_variants(mut data: Cursor<&[u8]>) -> Result<u128, &str> {
+fn read_variants(mut data: Cursor<&[u8]>) -> Result<u128, &str> {
     // iterate take_util とかでもできるよ
     let mut sum = 0;
     let mut loop_count = 0;
@@ -34,17 +34,17 @@ mod tests {
     }
 
     #[test]
-    fn test_load_variants() {
+    fn test_read_variants() {
         {
             let bytes: &[u8] = &[0b00000001];
             let c = Cursor::new(bytes);
-            let x = super::load_variants(c);
+            let x = super::read_variants(c);
             assert_eq!(x, Ok(1));
         }
         {
             let bytes: &[u8] = &[0b10101100, 0b00000010];
             let c = Cursor::new(bytes);
-            let x = super::load_variants(c);
+            let x = super::read_variants(c);
             assert_eq!(x, Ok(300));
         }
     }
