@@ -28,6 +28,13 @@ fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128, String> {
     }
 }
 
+fn read_variable_lenth(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>, String> {
+    let length = read_variants(data)? as usize;
+    let mut buf = vec![0; length];
+    data.read_exact(&mut buf).map_err(|e| e.to_string())?;
+    Ok(buf)
+}
+
 fn read_tag(data: &mut Cursor<&[u8]>) -> Result<WireTag, String> {
     let n = read_variants(data)?;
     let wtb = n & 7;
@@ -149,6 +156,22 @@ mod tests {
             };
             assert_eq!(got, expected);
             assert_eq!(c.position(), 2);
+        }
+    }
+
+    #[test]
+    fn test_read_variable_lenth() {
+        {
+            let bytes: &[u8] = &[0b00000010, 0b01111000, 0b01111000];
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+
+            let got = read_variable_lenth(&mut c).unwrap();
+
+            let expected = vec![0b01111000, 0b01111000];
+            assert_eq!(got, expected);
+            assert_eq!(c.position(), 3);
         }
     }
     #[test]
