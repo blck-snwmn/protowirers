@@ -4,7 +4,7 @@ use std::{
     u128,
 };
 
-fn read_variants(mut data: Cursor<&[u8]>) -> Result<u128, String> {
+fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128, String> {
     // iterate take_util とかでもできるよ
     let mut sum = 0;
     let mut loop_count = 0;
@@ -28,13 +28,8 @@ fn read_variants(mut data: Cursor<&[u8]>) -> Result<u128, String> {
     }
 }
 
-fn read_tag(mut data: Cursor<&[u8]>) -> Result<WireTag, String> {
-    let mut buf = [0; 1];
-    let result = data.read_exact(&mut buf);
-    if let Err(_) = result {
-        return Err("unexpected format. end come after MSB is 0".to_string());
-    }
-    let n = buf[0] as u128;
+fn read_tag(data: &mut Cursor<&[u8]>) -> Result<WireTag, String> {
+    let n = read_variants(data)?;
     let wtb = n & 7;
     let field_number = n >> 3;
     let wt = WireType::new(wtb);
@@ -95,40 +90,65 @@ mod tests {
     fn test_read_variants() {
         {
             let bytes: &[u8] = &[0b00000001];
-            let c = Cursor::new(bytes);
-            let x = super::read_variants(c);
+            let mut c = Cursor::new(bytes);
+            assert_eq!(c.position(), 0);
+            let x = super::read_variants(&mut c);
             assert_eq!(x, Ok(1));
+            assert_eq!(c.position(), 1);
         }
         {
             let bytes: &[u8] = &[0b10101100, 0b00000010];
-            let c = Cursor::new(bytes);
-            let x = super::read_variants(c);
+            let mut c = Cursor::new(bytes);
+            assert_eq!(c.position(), 0);
+            let x = super::read_variants(&mut c);
             assert_eq!(x, Ok(300));
+            assert_eq!(c.position(), 2);
         }
     }
     #[test]
     fn test_read_tag() {
         {
             let bytes: &[u8] = &[0b00001000];
-            let c = Cursor::new(bytes);
-            let got = read_tag(c).unwrap();
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+
+            let got = read_tag(&mut c).unwrap();
 
             let expected = WireTag {
                 field_number: 1,
                 wire_type: WireType::Varint,
             };
             assert_eq!(got, expected);
+            assert_eq!(c.position(), 1);
         }
         {
             let bytes: &[u8] = &[0b00011010];
-            let c = Cursor::new(bytes);
-            let got = read_tag(c).unwrap();
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+            let got = read_tag(&mut c).unwrap();
 
             let expected = WireTag {
                 field_number: 3,
                 wire_type: WireType::LengthDelimited,
             };
             assert_eq!(got, expected);
+            assert_eq!(c.position(), 1);
+        }
+        {
+            let bytes: &[u8] = &[0b11000000, 0b0111110];
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+            let got = read_tag(&mut c).unwrap();
+
+            let expected = WireTag {
+                field_number: 1000,
+                wire_type: WireType::Varint,
+            };
+            assert_eq!(got, expected);
+            assert_eq!(c.position(), 2);
         }
     }
     #[test]
