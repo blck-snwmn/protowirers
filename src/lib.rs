@@ -44,6 +44,11 @@ fn read_variable_lenth(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>, String> {
     Ok(buf)
 }
 
+fn read_zigzag(data: &mut Cursor<&[u8]>) -> Result<i128, String> {
+    let v = read_variants(data)?;
+    Ok(decode_zigzag(v))
+}
+
 fn read_tag(data: &mut Cursor<&[u8]>) -> Result<WireTag, String> {
     let n = read_variants(data)?;
     let wtb = n & 7;
@@ -203,6 +208,43 @@ mod tests {
         assert_eq!(decode_zigzag(4), 2);
         assert_eq!(decode_zigzag(4294967294), 2147483647);
         assert_eq!(decode_zigzag(4294967295), -2147483648);
+    }
+
+    #[test]
+    fn test_read_zigzag() {
+        {
+            let bytes: &[u8] = &[0b10011111, 0b10011100, 0b00000001];
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+
+            let got = read_zigzag(&mut c).unwrap();
+
+            assert_eq!(got, -10000);
+            assert_eq!(c.position(), 3);
+        }
+        {
+            let bytes: &[u8] = &[0b10100011, 0b00010011];
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+
+            let got = read_zigzag(&mut c).unwrap();
+
+            assert_eq!(got, -1234);
+            assert_eq!(c.position(), 2);
+        }
+        {
+            let bytes: &[u8] = &[0b11100100, 0b01010001];
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+
+            let got = read_zigzag(&mut c).unwrap();
+
+            assert_eq!(got, 5234);
+            assert_eq!(c.position(), 2);
+        }
     }
     #[test]
     fn check() {
