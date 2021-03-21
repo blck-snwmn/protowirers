@@ -49,6 +49,25 @@ fn read_zigzag(data: &mut Cursor<&[u8]>) -> Result<i128, String> {
     Ok(decode_zigzag(v))
 }
 
+fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>, String> {
+    let payload_size = read_variants(data)?;
+    let start = data.position();
+
+    let mut v = Vec::new();
+    loop {
+        let now_position = data.position();
+        let red_size = (now_position - start) as u128;
+        if payload_size == red_size {
+            return Ok(v);
+        }
+        if payload_size < red_size {
+            return Err("unexpected red size".to_string());
+        }
+        let value = read_variants(data)?;
+        v.push(value);
+    }
+}
+
 fn read_tag(data: &mut Cursor<&[u8]>) -> Result<WireTag, String> {
     let n = read_variants(data)?;
     let wtb = n & 7;
@@ -246,6 +265,24 @@ mod tests {
             assert_eq!(c.position(), 2);
         }
     }
+
+    #[test]
+    fn test_read_repeat() {
+        {
+            let bytes: &[u8] = &[
+                0b00000110, 0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100, 0b00000101,
+            ];
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+
+            let got = read_repeat(&mut c).unwrap();
+
+            assert_eq!(got, vec![1, 2, 1000, 4, 5]);
+            assert_eq!(c.position(), 7);
+        }
+    }
+
     #[test]
     fn check() {
         {
