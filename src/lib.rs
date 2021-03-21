@@ -4,6 +4,15 @@ use std::{
     u128,
 };
 
+fn encode_zigzag(n: i128) -> u128 {
+    ((n << 1) ^ (n >> 31)) as u128
+}
+fn decode_zigzag(n: u128) -> i128 {
+    let r = (n >> 1) as i128;
+    let l = (n & 1) as i128;
+    (r ^ -l) as i128
+}
+
 fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128, String> {
     // iterate take_util とかでもできるよ
     let mut sum = 0;
@@ -174,6 +183,27 @@ mod tests {
             assert_eq!(c.position(), 3);
         }
     }
+
+    #[test]
+    fn test_encode_zigzag() {
+        assert_eq!(encode_zigzag(0), 0);
+        assert_eq!(encode_zigzag(-1), 1);
+        assert_eq!(encode_zigzag(1), 2);
+        assert_eq!(encode_zigzag(-2), 3);
+        assert_eq!(encode_zigzag(2), 4);
+        assert_eq!(encode_zigzag(2147483647), 4294967294);
+        assert_eq!(encode_zigzag(-2147483648), 4294967295);
+    }
+    #[test]
+    fn test_decode_zigzag() {
+        assert_eq!(decode_zigzag(0), 0);
+        assert_eq!(decode_zigzag(1), -1);
+        assert_eq!(decode_zigzag(2), 1);
+        assert_eq!(decode_zigzag(3), -2);
+        assert_eq!(decode_zigzag(4), 2);
+        assert_eq!(decode_zigzag(4294967294), 2147483647);
+        assert_eq!(decode_zigzag(4294967295), -2147483648);
+    }
     #[test]
     fn check() {
         {
@@ -186,6 +216,54 @@ mod tests {
         {
             println!("{:08b}", 0b10000001 & 7);
             println!("{:08b}", 0b10000101 & 7);
+        }
+        {
+            let encode = |n: i32| {
+                println!(
+                    "{:32}:{:032b}, {:032b}, {:032b}={}",
+                    n,
+                    n,
+                    n << 1,
+                    n >> 31,
+                    (n << 1) ^ (n >> 31)
+                )
+            };
+            let n = 1;
+            encode(n);
+            let n = -1;
+            encode(n);
+            let n = -2;
+            encode(n);
+            let n = 2;
+            encode(n);
+            let n = 3;
+            encode(n);
+            let n = -3;
+            encode(n);
+        }
+        {
+            let decode = |n: i32| {
+                println!(
+                    "{:32}:{:032b}, {:032b}, {:032b}={}",
+                    n,
+                    n,
+                    n >> 1,
+                    -(n & 1),
+                    (n >> 1) ^ -(n & 1)
+                )
+            };
+            let n = 1;
+            decode(n);
+            let n = 2;
+            decode(n);
+            let n = 3;
+            decode(n);
+            let n = 4;
+            decode(n);
+            let n = 5;
+            decode(n);
+            let n = 6;
+            decode(n);
         }
     }
 }
