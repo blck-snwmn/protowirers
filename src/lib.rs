@@ -39,7 +39,7 @@ fn read_variable_lenth(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>, String> {
 
 fn read_zigzag(data: &mut Cursor<&[u8]>) -> Result<i128, String> {
     let v = read_variants(data)?;
-    Ok(zigzag::decode_zigzag(v))
+    Ok(zigzag::decode(v))
 }
 
 fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>, String> {
