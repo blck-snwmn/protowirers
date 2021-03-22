@@ -4,14 +4,7 @@ use std::{
     u128,
 };
 
-fn encode_zigzag(n: i128) -> u128 {
-    ((n << 1) ^ (n >> 31)) as u128
-}
-fn decode_zigzag(n: u128) -> i128 {
-    let r = (n >> 1) as i128;
-    let l = (n & 1) as i128;
-    (r ^ -l) as i128
-}
+mod zigzag;
 
 fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128, String> {
     // iterate take_util とかでもできるよ
@@ -46,7 +39,7 @@ fn read_variable_lenth(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>, String> {
 
 fn read_zigzag(data: &mut Cursor<&[u8]>) -> Result<i128, String> {
     let v = read_variants(data)?;
-    Ok(decode_zigzag(v))
+    Ok(zigzag::decode_zigzag(v))
 }
 
 fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>, String> {
@@ -206,27 +199,6 @@ mod tests {
             assert_eq!(got, expected);
             assert_eq!(c.position(), 3);
         }
-    }
-
-    #[test]
-    fn test_encode_zigzag() {
-        assert_eq!(encode_zigzag(0), 0);
-        assert_eq!(encode_zigzag(-1), 1);
-        assert_eq!(encode_zigzag(1), 2);
-        assert_eq!(encode_zigzag(-2), 3);
-        assert_eq!(encode_zigzag(2), 4);
-        assert_eq!(encode_zigzag(2147483647), 4294967294);
-        assert_eq!(encode_zigzag(-2147483648), 4294967295);
-    }
-    #[test]
-    fn test_decode_zigzag() {
-        assert_eq!(decode_zigzag(0), 0);
-        assert_eq!(decode_zigzag(1), -1);
-        assert_eq!(decode_zigzag(2), 1);
-        assert_eq!(decode_zigzag(3), -2);
-        assert_eq!(decode_zigzag(4), 2);
-        assert_eq!(decode_zigzag(4294967294), 2147483647);
-        assert_eq!(decode_zigzag(4294967295), -2147483648);
     }
 
     #[test]
