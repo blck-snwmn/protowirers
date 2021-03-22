@@ -6,6 +6,7 @@ use std::{
 
 mod zigzag;
 
+// read_variants read base variants
 fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128, String> {
     // iterate take_util とかでもできるよ
     let mut sum = 0;
@@ -30,6 +31,9 @@ fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128, String> {
     }
 }
 
+// read_variable_lenth read variable length byte.
+// length to read is first variants
+// this function used by `string`, `embedded messages`
 fn read_variable_lenth(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>, String> {
     let length = read_variants(data)? as usize;
     let mut buf = vec![0; length];
@@ -37,11 +41,13 @@ fn read_variable_lenth(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>, String> {
     Ok(buf)
 }
 
+// read_zigzag read zigzag encoding data
 fn read_zigzag(data: &mut Cursor<&[u8]>) -> Result<i128, String> {
     let v = read_variants(data)?;
     Ok(zigzag::decode(v))
 }
 
+// read_repeat read repeated elements
 fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>, String> {
     let payload_size = read_variants(data)?;
     let start = data.position();
@@ -61,6 +67,7 @@ fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>, String> {
     }
 }
 
+// read_tag read wire's tag
 fn read_tag(data: &mut Cursor<&[u8]>) -> Result<WireTag, String> {
     let n = read_variants(data)?;
     let wtb = n & 7;
@@ -316,5 +323,6 @@ mod tests {
             let n = 6;
             decode(n);
         }
+        {}
     }
 }
