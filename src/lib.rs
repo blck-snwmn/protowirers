@@ -1,6 +1,5 @@
 use std::{
     io::{Cursor, Read},
-    ops::BitXorAssign,
     u128,
 };
 
