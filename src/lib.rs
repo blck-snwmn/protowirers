@@ -30,10 +30,10 @@ fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128, String> {
     }
 }
 
-// read_variable_lenth read variable length byte.
+// read_length_delimited read variable length byte.
 // length to read is first variants
 // this function used by `string`, `embedded messages`
-fn read_variable_lenth(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>, String> {
+fn read_length_delimited(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>, String> {
     let length = read_variants(data)? as usize;
     let mut buf = vec![0; length];
     data.read_exact(&mut buf).map_err(|e| e.to_string())?;
@@ -194,14 +194,14 @@ mod tests {
     }
 
     #[test]
-    fn test_read_variable_lenth() {
+    fn test_read_length_delimited() {
         {
             let bytes: &[u8] = &[0b00000010, 0b01111000, 0b01111000];
             let mut c = Cursor::new(bytes);
 
             assert_eq!(c.position(), 0);
 
-            let got = read_variable_lenth(&mut c).unwrap();
+            let got = read_length_delimited(&mut c).unwrap();
 
             let expected = vec![0b01111000, 0b01111000];
             assert_eq!(got, expected);
