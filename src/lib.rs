@@ -86,9 +86,11 @@ struct WireStruct {
     tag: WireTag,
     value: u128,
 }
+
+type FieldNumber = u128;
 #[derive(Debug, PartialEq, Eq)]
 struct WireTag {
-    field_number: u128,
+    field_number: FieldNumber,
     wire_type: WireType,
 }
 #[derive(Debug, PartialEq, Eq)]
