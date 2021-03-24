@@ -40,12 +40,6 @@ fn read_length_delimited(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>, String> {
     Ok(buf)
 }
 
-// read_zigzag read zigzag encoding data
-fn read_zigzag(data: &mut Cursor<&[u8]>) -> Result<i128, String> {
-    let v = read_variants(data)?;
-    Ok(zigzag::decode(v))
-}
-
 fn read_32bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 4], String> {
     let mut buf = [0; 4];
     data.read_exact(&mut buf).map_err(|e| e.to_string())?;
@@ -200,43 +194,6 @@ mod tests {
             let expected = vec![0b01111000, 0b01111000];
             assert_eq!(got, expected);
             assert_eq!(c.position(), 3);
-        }
-    }
-
-    #[test]
-    fn test_read_zigzag() {
-        {
-            let bytes: &[u8] = &[0b10011111, 0b10011100, 0b00000001];
-            let mut c = Cursor::new(bytes);
-
-            assert_eq!(c.position(), 0);
-
-            let got = read_zigzag(&mut c).unwrap();
-
-            assert_eq!(got, -10000);
-            assert_eq!(c.position(), 3);
-        }
-        {
-            let bytes: &[u8] = &[0b10100011, 0b00010011];
-            let mut c = Cursor::new(bytes);
-
-            assert_eq!(c.position(), 0);
-
-            let got = read_zigzag(&mut c).unwrap();
-
-            assert_eq!(got, -1234);
-            assert_eq!(c.position(), 2);
-        }
-        {
-            let bytes: &[u8] = &[0b11100100, 0b01010001];
-            let mut c = Cursor::new(bytes);
-
-            assert_eq!(c.position(), 0);
-
-            let got = read_zigzag(&mut c).unwrap();
-
-            assert_eq!(got, 5234);
-            assert_eq!(c.position(), 2);
         }
     }
 
