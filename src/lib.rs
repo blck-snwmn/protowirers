@@ -83,42 +83,41 @@ fn read_tag(data: &mut Cursor<&[u8]>) -> Result<(u128, u128), String> {
     let wt = n & 7;
     let field_number = n >> 3;
     Ok((field_number, wt))
-    }
+}
 
-#[derive(Debug, PartialEq, Eq)]
-struct WireStruct {
-    tag: WireTag,
-    value: u128,
+fn read_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct, String> {
+    let (field_num, wire_type) = read_tag(data)?;
+    let wt = match wire_type {
+        0 => Ok(WireType::Varint(read_variants(data)?)),
+        1 => Ok(WireType::Bit64(read_64bit(data)?)),
+        2 => Ok(WireType::LengthDelimited(read_length_delimited(data)?)),
+        // 3=>WireType::StartGroup,
+        // 4=>WireType::EndGroup,
+        5 => Ok(WireType::Bit32(read_32bit(data)?)),
+        _ => Err(format!("no expected type value. got={}", wire_type)),
+    }?;
+    Ok(WireStruct {
+        field_number: field_num,
+        wire_type: wt,
+    })
 }
 
 type FieldNumber = u128;
+
 #[derive(Debug, PartialEq, Eq)]
-struct WireTag {
+struct WireStruct {
     field_number: FieldNumber,
     wire_type: WireType,
 }
+
 #[derive(Debug, PartialEq, Eq)]
 enum WireType {
-    Varint,
-    Bit64,
-    LengthDelimited,
-    StartGroup,
-    EndGroup,
-    Bit32,
-}
-
-impl WireType {
-    fn new(u: u128) -> Option<Self> {
-        match u {
-            0 => Some(WireType::Varint),
-            1 => Some(WireType::Bit64),
-            2 => Some(WireType::LengthDelimited),
-            3 => Some(WireType::StartGroup),
-            4 => Some(WireType::EndGroup),
-            5 => Some(WireType::Bit32),
-            _ => None,
-        }
-    }
+    Varint(u128),
+    Bit64([u8; 8]),
+    LengthDelimited(Vec<u8>),
+    // StartGroup,
+    // EndGroup,
+    Bit32([u8; 4]),
 }
 
 #[cfg(test)]
@@ -284,6 +283,82 @@ mod tests {
 
         assert_eq!(got, [0, 0, 0, 0, 0, 0, 240, 63]);
         assert_eq!(c.position(), 8);
+    }
+
+    #[test]
+    fn test_read_struct() {
+        {
+            let bytes: &[u8] = &[0b01000101, 0b00000000, 0b00000000, 0b00000000, 0b01000000];
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+
+            let got = read_struct(&mut c).unwrap();
+
+            let expected = WireStruct {
+                field_number: 8,
+                wire_type: WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+            };
+            assert_eq!(got, expected);
+            assert_eq!(c.position(), 5);
+        }
+        {
+            let bytes: &[u8] = &[
+                0b00001001, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                0b11110000, 0b00111111,
+            ];
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+
+            let got = read_struct(&mut c).unwrap();
+
+            let expected = WireStruct {
+                field_number: 1,
+                wire_type: WireType::Bit64([
+                    0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                    0b11110000, 0b00111111,
+                ]),
+            };
+            assert_eq!(got, expected);
+            assert_eq!(c.position(), 9);
+        }
+        {
+            let bytes: &[u8] = &[
+                0b00100010, 0b00001100, 0b01111000, 0b11100011, 0b10000001, 0b10000010, 0b01111000,
+                0b11100011, 0b10000001, 0b10000010, 0b01111000, 0b11100011, 0b10000001, 0b10000010,
+            ];
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+
+            let got = read_struct(&mut c).unwrap();
+
+            let expected = WireStruct {
+                field_number: 4,
+                wire_type: WireType::LengthDelimited(vec![
+                    0b01111000, 0b11100011, 0b10000001, 0b10000010, 0b01111000, 0b11100011,
+                    0b10000001, 0b10000010, 0b01111000, 0b11100011, 0b10000001, 0b10000010,
+                ]),
+            };
+            assert_eq!(got, expected);
+            assert_eq!(c.position(), 14);
+        }
+        {
+            let bytes: &[u8] = &[0b11000000, 0b00111110, 0b11100011, 0b01010001];
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+
+            let got = read_struct(&mut c).unwrap();
+
+            let expected = WireStruct {
+                field_number: 1000,
+                wire_type: WireType::Varint(10467),
+            };
+            assert_eq!(got, expected);
+            assert_eq!(c.position(), 4);
+        }
     }
 
     #[test]
