@@ -67,20 +67,13 @@ fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>, String> {
 }
 
 // read_tag read wire's tag
-fn read_tag(data: &mut Cursor<&[u8]>) -> Result<WireTag, String> {
+fn read_tag(data: &mut Cursor<&[u8]>) -> Result<(u128, u128), String> {
     let n = read_variants(data)?;
-    let wtb = n & 7;
+    let wt = n & 7;
     let field_number = n >> 3;
-    let wt = WireType::new(wtb);
-    if wt.is_none() {
-        return Err(format!("no supurted type. got={}", wtb));
+    Ok((field_number, wt))
     }
-    let wt = wt.unwrap();
-    Ok(WireTag {
-        field_number: field_number,
-        wire_type: wt,
-    })
-}
+
 #[derive(Debug, PartialEq, Eq)]
 struct WireStruct {
     tag: WireTag,
@@ -156,10 +149,7 @@ mod tests {
 
             let got = read_tag(&mut c).unwrap();
 
-            let expected = WireTag {
-                field_number: 1,
-                wire_type: WireType::Varint,
-            };
+            let expected = (1, 0);
             assert_eq!(got, expected);
             assert_eq!(c.position(), 1);
         }
@@ -170,10 +160,7 @@ mod tests {
             assert_eq!(c.position(), 0);
             let got = read_tag(&mut c).unwrap();
 
-            let expected = WireTag {
-                field_number: 3,
-                wire_type: WireType::LengthDelimited,
-            };
+            let expected = (3, 2);
             assert_eq!(got, expected);
             assert_eq!(c.position(), 1);
         }
@@ -184,10 +171,7 @@ mod tests {
             assert_eq!(c.position(), 0);
             let got = read_tag(&mut c).unwrap();
 
-            let expected = WireTag {
-                field_number: 1000,
-                wire_type: WireType::Varint,
-            };
+            let expected = (1000, 0);
             assert_eq!(got, expected);
             assert_eq!(c.position(), 2);
         }
