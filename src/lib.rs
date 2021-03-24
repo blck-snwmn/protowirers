@@ -46,6 +46,17 @@ fn read_zigzag(data: &mut Cursor<&[u8]>) -> Result<i128, String> {
     Ok(zigzag::decode(v))
 }
 
+fn read_32bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 4], String> {
+    let mut buf = [0; 4];
+    data.read_exact(&mut buf).map_err(|e| e.to_string())?;
+    Ok(buf)
+}
+fn read_64bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 8], String> {
+    let mut buf = [0; 8];
+    data.read_exact(&mut buf).map_err(|e| e.to_string())?;
+    Ok(buf)
+}
+
 // read_repeat read repeated elements
 fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>, String> {
     let payload_size = read_variants(data)?;
@@ -245,6 +256,34 @@ mod tests {
             assert_eq!(got, vec![1, 2, 1000, 4, 5]);
             assert_eq!(c.position(), 7);
         }
+    }
+
+    #[test]
+    fn test_read_32bit() {
+        let bytes: &[u8] = &[0b00000000, 0b00000000, 0b00000000, 0b01000000];
+        let mut c = Cursor::new(bytes);
+
+        assert_eq!(c.position(), 0);
+
+        let got = read_32bit(&mut c).unwrap();
+
+        assert_eq!(got, [0, 0, 0, 64]);
+        assert_eq!(c.position(), 8);
+    }
+    #[test]
+    fn test_read_64bit() {
+        let bytes: &[u8] = &[
+            0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b11110000,
+            0b00111111,
+        ];
+        let mut c = Cursor::new(bytes);
+
+        assert_eq!(c.position(), 0);
+
+        let got = read_64bit(&mut c).unwrap();
+
+        assert_eq!(got, [0, 0, 0, 0, 0, 0, 240, 63]);
+        assert_eq!(c.position(), 8);
     }
 
     #[test]
