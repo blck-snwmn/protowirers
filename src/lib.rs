@@ -224,7 +224,7 @@ mod tests {
         let got = read_32bit(&mut c).unwrap();
 
         assert_eq!(got, [0, 0, 0, 64]);
-        assert_eq!(c.position(), 8);
+        assert_eq!(c.position(), 4);
     }
     #[test]
     fn test_read_64bit() {
