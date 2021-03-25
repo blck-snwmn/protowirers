@@ -1,9 +1,15 @@
 use std::{
-    io::{Cursor, Read},
+    io::{Cursor, Read, Seek, SeekFrom},
     u128,
 };
 
 mod zigzag;
+
+// fn read(data: &mut Cursor<&[u8]>, buf: &mut [u8] ) -> Result<(), String>{
+//     let result = data.read_exact(&mut buf);
+//     let x = result.map(|read_size|read_size==buf.len()) ;
+
+// }
 
 // read_variants read base variants
 fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128, String> {
@@ -96,6 +102,19 @@ fn read_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct, String> {
     })
 }
 
+// read_wire_binary read wire format. return Vec included red filed.
+fn read_wire_binary(data: &mut Cursor<&[u8]>) -> Result<Vec<WireStruct>, String> {
+    let mut v = Vec::new();
+    // ここは、`data.get_ref().len();` でもよい。
+    let end = data.seek(SeekFrom::End(0)).map_err(|e| e.to_string())?;
+    data.seek(SeekFrom::Start(0)).map_err(|e| e.to_string())?;
+
+    while end > data.position() {
+        v.push(read_struct(data)?);
+    }
+    Ok(v)
+}
+
 type FieldNumber = u128;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -117,7 +136,7 @@ enum WireType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Cursor;
+    use std::io::{Cursor, Seek, SeekFrom};
 
     #[test]
     fn it_works() {
@@ -319,6 +338,60 @@ mod tests {
     }
 
     #[test]
+    fn test_read_wire_binary() {
+        {
+            let bytes: &[u8] = &[0b01000101, 0b00000000, 0b00000000, 0b00000000, 0b01000000];
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+
+            let got = read_wire_binary(&mut c).unwrap();
+
+            let expected = vec![WireStruct {
+                field_number: 8,
+                wire_type: WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+            }];
+            assert_eq!(got, expected);
+            assert_eq!(c.position(), 5);
+        }
+        {
+            let bytes: &[u8] = &[
+                0b01000101, 0b00000000, 0b00000000, 0b00000000, 0b01000000, 0b00001001, 0b00000000,
+                0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b11110000, 0b00111111,
+            ];
+            let mut c = Cursor::new(bytes);
+
+            assert_eq!(c.position(), 0);
+
+            let got = read_wire_binary(&mut c).unwrap();
+
+            let expected = vec![
+                WireStruct {
+                    field_number: 8,
+                    wire_type: WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+                },
+                WireStruct {
+                    field_number: 1,
+                    wire_type: WireType::Bit64([
+                        0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                        0b11110000, 0b00111111,
+                    ]),
+                },
+            ];
+            assert_eq!(got, expected);
+            assert_eq!(c.position(), 14);
+        }
+        {
+            let bytes: &[u8] = &[
+                0b01000101, 0b00000000, 0b00000000, 0b00000000, 0b01000000, 0b00001001, 0b00000000,
+                0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b11110000,
+            ];
+            let mut c = Cursor::new(bytes);
+            assert!(read_wire_binary(&mut c).is_err());
+        }
+    }
+
+    #[test]
     fn check() {
         {
             let mut sum = 0;
@@ -379,6 +452,24 @@ mod tests {
             let n = 6;
             decode(n);
         }
-        {}
+        {
+            let bytes: &[u8] = &[0b11000000, 0b00111110, 0b11100011, 0b01010001];
+            let mut c = Cursor::new(bytes);
+
+            let mut buf = [0; 6];
+
+            println!("{:?}", c.get_ref().len());
+            println!("empty={}", buf.is_empty());
+            println!("start={}", c.position());
+            let r = c.read_exact(&mut buf);
+            println!("result={:?}", r);
+            println!("1st end={}", c.position());
+            let r = c.read_exact(&mut buf);
+            println!("result={:?}", r);
+            println!("end={}", c.position());
+            println!("write={:?}", buf);
+            println!("empty={}", buf.is_empty());
+            println!("{:?}", c.seek(SeekFrom::End(0)));
+        }
     }
 }
