@@ -50,16 +50,17 @@ fn read_length_delimited(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>> {
     data.read_exact(&mut buf)?;
     Ok(buf)
 }
-
-fn read_32bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 4]> {
-    let mut buf = [0; 4];
+fn read_nbit<const SIZE: usize>(data: &mut Cursor<&[u8]>) -> Result<[u8; SIZE]> {
+    let mut buf = [0; SIZE];
     data.read_exact(&mut buf)?;
     Ok(buf)
 }
+
+fn read_32bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 4]> {
+    read_nbit(data)
+}
 fn read_64bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 8]> {
-    let mut buf = [0; 8];
-    data.read_exact(&mut buf)?;
-    Ok(buf)
+    read_nbit(data)
 }
 
 // read_repeat read repeated elements
