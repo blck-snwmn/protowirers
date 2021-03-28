@@ -1,16 +1,12 @@
 [package]
-name = "protowirers"
+name = "protowirers-impl"
 version = "0.1.0"
 authors = ["blck-snwmn <whitesnowmancreator@gmail.com>"]
 edition = "2018"
 
-[workspace]
-members = ["impl"]
-
-
-[[test]]
-name = "tests"
-path = "tests/tests.rs"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+proc-macro = true
 
 [dependencies]
 byteorder = "1"
@@ -19,4 +15,4 @@ proc-macro2="1.0"
 quote = "1.0"
 thiserror = "1.0"
 anyhow = "1.0"
-protowirers-impl={version="0.1.0", path = "impl"}
+
