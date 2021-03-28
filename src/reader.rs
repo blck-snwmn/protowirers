@@ -1,10 +1,23 @@
 use std::{
+    fmt::Display,
     io::{Cursor, Read, Seek, SeekFrom},
     u128,
 };
 
+use anyhow::Result;
+use thiserror::Error;
+#[derive(Error, Debug)]
+enum ReadError {
+    #[error("unexpected format. end come after MSB is 0")]
+    UnexpectFormatError,
+    #[error("unexpected red size. got={0}, want={1}")]
+    UnexpectRepeatSizeError(u128, u128),
+    #[error("no expected type value. got={0}")]
+    UnexpectedWireTypeValueError(u128),
+}
+
 // read_variants read base variants
-fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128, String> {
+fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128> {
     // iterate take_util とかでもできるよ
     let mut sum = 0;
     let mut loop_count = 0;
@@ -12,7 +25,7 @@ fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128, String> {
         let mut buf = [0; 1];
         let result = data.read_exact(&mut buf);
         if let Err(_) = result {
-            return Err("unexpected format. end come after MSB is 0".to_string());
+            return Err(ReadError::UnexpectFormatError)?;
         }
         // MSB は後続のバイトが続くかどうかの判定に使われる
         // 1 の場合、後続が続く
@@ -31,26 +44,26 @@ fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128, String> {
 // read_length_delimited read variable length byte.
 // length to read is first variants
 // this function used by `string`, `embedded messages`
-fn read_length_delimited(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>, String> {
+fn read_length_delimited(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>> {
     let length = read_variants(data)? as usize;
     let mut buf = vec![0; length];
-    data.read_exact(&mut buf).map_err(|e| e.to_string())?;
+    data.read_exact(&mut buf)?;
     Ok(buf)
 }
 
-fn read_32bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 4], String> {
+fn read_32bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 4]> {
     let mut buf = [0; 4];
-    data.read_exact(&mut buf).map_err(|e| e.to_string())?;
+    data.read_exact(&mut buf)?;
     Ok(buf)
 }
-fn read_64bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 8], String> {
+fn read_64bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 8]> {
     let mut buf = [0; 8];
-    data.read_exact(&mut buf).map_err(|e| e.to_string())?;
+    data.read_exact(&mut buf)?;
     Ok(buf)
 }
 
 // read_repeat read repeated elements
-fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>, String> {
+fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>> {
     let payload_size = read_variants(data)?;
     let start = data.position();
 
@@ -62,7 +75,7 @@ fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>, String> {
             return Ok(v);
         }
         if payload_size < red_size {
-            return Err("unexpected red size".to_string());
+            return Err(ReadError::UnexpectRepeatSizeError(payload_size, red_size))?;
         }
         let value = read_variants(data)?;
         v.push(value);
@@ -70,14 +83,14 @@ fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>, String> {
 }
 
 // read_tag read wire's tag
-fn read_tag(data: &mut Cursor<&[u8]>) -> Result<(u128, u128), String> {
+fn read_tag(data: &mut Cursor<&[u8]>) -> Result<(u128, u128)> {
     let n = read_variants(data)?;
     let wt = n & 7;
     let field_number = n >> 3;
     Ok((field_number, wt))
 }
 
-fn read_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct, String> {
+fn read_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct> {
     let (field_num, wire_type) = read_tag(data)?;
     let wt = match wire_type {
         0 => Ok(WireType::Varint(read_variants(data)?)),
@@ -86,7 +99,7 @@ fn read_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct, String> {
         // 3=>WireType::StartGroup,
         // 4=>WireType::EndGroup,
         5 => Ok(WireType::Bit32(read_32bit(data)?)),
-        _ => Err(format!("no expected type value. got={}", wire_type)),
+        _ => Err(ReadError::UnexpectedWireTypeValueError(wire_type)),
     }?;
     Ok(WireStruct {
         field_number: field_num,
@@ -95,11 +108,11 @@ fn read_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct, String> {
 }
 
 // read_wire_binary read wire format. return Vec included red filed.
-fn read_wire_binary(data: &mut Cursor<&[u8]>) -> Result<Vec<WireStruct>, String> {
+pub fn read_wire_binary(data: &mut Cursor<&[u8]>) -> Result<Vec<WireStruct>> {
     let mut v = Vec::new();
     // ここは、`data.get_ref().len();` でもよい。
-    let end = data.seek(SeekFrom::End(0)).map_err(|e| e.to_string())?;
-    data.seek(SeekFrom::Start(0)).map_err(|e| e.to_string())?;
+    let end = data.seek(SeekFrom::End(0))?;
+    data.seek(SeekFrom::Start(0))?;
 
     while end > data.position() {
         v.push(read_struct(data)?);
@@ -110,19 +123,39 @@ fn read_wire_binary(data: &mut Cursor<&[u8]>) -> Result<Vec<WireStruct>, String>
 type FieldNumber = u128;
 
 #[derive(Debug, PartialEq, Eq)]
-struct WireStruct {
+pub struct WireStruct {
     field_number: FieldNumber,
     wire_type: WireType,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum WireType {
+impl WireStruct {
+    pub fn field_number(&self) -> &FieldNumber {
+        &self.field_number
+    }
+    pub fn wire_type(&self) -> &WireType {
+        &self.wire_type
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum WireType {
     Varint(u128),
     Bit64([u8; 8]),
     LengthDelimited(Vec<u8>),
     // StartGroup,
     // EndGroup,
     Bit32([u8; 4]),
+}
+
+impl Display for WireType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            WireType::Varint(v) => write!(f, "Varint{}", v),
+            WireType::Bit64(v) => write!(f, "Bit64{:?}", v),
+            WireType::LengthDelimited(v) => write!(f, "LengthDelimited{:?}", v),
+            WireType::Bit32(v) => write!(f, "Bit32{:?}", v),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -141,16 +174,16 @@ mod tests {
             let bytes: &[u8] = &[0b00000001];
             let mut c = Cursor::new(bytes);
             assert_eq!(c.position(), 0);
-            let x = super::read_variants(&mut c);
-            assert_eq!(x, Ok(1));
+            let x = super::read_variants(&mut c).unwrap();
+            assert_eq!(x, 1);
             assert_eq!(c.position(), 1);
         }
         {
             let bytes: &[u8] = &[0b10101100, 0b00000010];
             let mut c = Cursor::new(bytes);
             assert_eq!(c.position(), 0);
-            let x = super::read_variants(&mut c);
-            assert_eq!(x, Ok(300));
+            let x = super::read_variants(&mut c).unwrap();
+            assert_eq!(x, 300);
             assert_eq!(c.position(), 2);
         }
     }
