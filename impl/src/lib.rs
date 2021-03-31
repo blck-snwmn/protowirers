@@ -15,14 +15,6 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
     };
     let data = data.unwrap();
 
-    let init_fields = data.fields.iter().map(|f| {
-        let filed_indent = &f.ident;
-        let filed_ty = &f.ty;
-        // 一旦固定値は0で。
-        quote! {
-            let mut #filed_indent: #filed_ty = 0;
-        }
-    });
     let build_parse_fields = data.fields.iter().map(|f| {
         let filed_indent = &f.ident;
         let x = f.attrs.iter().find_map(|a| {
@@ -99,9 +91,7 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
         }
     });
 
-    let init_fields = quote! {
-        #(#init_fields)*
-    };
+    let init_fields = declare_for_init(&data);
 
     let build_fields = build_struct_fields(&data);
     let build_parse_fields = quote! {
@@ -152,5 +142,19 @@ fn build_struct_fields(data: &syn::DataStruct) -> proc_macro2::TokenStream {
     });
     quote! {
         #(#build_fields,)*
+    }
+}
+
+fn declare_for_init(data: &syn::DataStruct) -> proc_macro2::TokenStream {
+    let init_fields = data.fields.iter().map(|f| {
+        let filed_indent = &f.ident;
+        let filed_ty = &f.ty;
+        // 一旦固定値は0で。
+        quote! {
+            let mut #filed_indent: #filed_ty = 0;
+        }
+    });
+    quote! {
+        #(#init_fields)*
     }
 }
