@@ -15,6 +15,72 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
     };
     let data = data.unwrap();
 
+    let init_fields = declare_for_init(&data);
+
+    let build_fields = build_struct_fields(&data);
+
+    let build_parse_fields = match_in_parse(&data);
+
+    let q = quote! {
+        use std::io::Cursor;
+        use anyhow::Result;
+        use protowirers::{parser, reader};
+
+        impl #input_indent{
+            pub fn parse(bytes: &[u8])->Result<Self>{
+                let mut c = Cursor::new(bytes);
+                let result = reader::read_wire_binary(&mut c)?;
+
+                #init_fields
+                for sw in result {
+                    match (sw.field_number(), sw.wire_type()) {
+                        #build_parse_fields
+                        _ => (),
+                    }
+                }
+                Ok(Self {
+                    #build_fields
+                })
+            }
+            pub fn bytes(&self)-> Vec<u8>{
+                Vec::new()
+            }
+        }
+    };
+    q.into()
+}
+
+// build_struct_fields は パース結果の値を構造体にマッピングを行います。
+fn build_struct_fields(data: &syn::DataStruct) -> proc_macro2::TokenStream {
+    let build_fields = data.fields.iter().map(|f| {
+        let filed_indent = &f.ident;
+        quote! {
+            #filed_indent
+        }
+    });
+    quote! {
+        #(#build_fields,)*
+    }
+}
+
+// declare_for_init は パース処理における各フィールドの初期化を行います
+// 現在はすべてのフィールドを初期化するため、入力データに値がない場合でも正常終了します
+// また、現時点での初期化は 数値型のみ機能しています。
+fn declare_for_init(data: &syn::DataStruct) -> proc_macro2::TokenStream {
+    let init_fields = data.fields.iter().map(|f| {
+        let filed_indent = &f.ident;
+        let filed_ty = &f.ty;
+        // 一旦固定値は0で。
+        quote! {
+            let mut #filed_indent: #filed_ty = 0;
+        }
+    });
+    quote! {
+        #(#init_fields)*
+    }
+}
+
+fn match_in_parse(data: &syn::DataStruct) -> proc_macro2::TokenStream {
     let build_parse_fields = data.fields.iter().map(|f| {
         let filed_indent = &f.ident;
         let x = f.attrs.iter().find_map(|a| {
@@ -90,75 +156,7 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
             }
         }
     });
-
-    let init_fields = declare_for_init(&data);
-
-    let build_fields = build_struct_fields(&data);
-    let build_parse_fields = quote! {
+    quote! {
         #(#build_parse_fields,)*
-    };
-
-    let q = quote! {
-        use std::io::Cursor;
-        use anyhow::Result;
-        use protowirers::{parser, reader};
-
-        impl #input_indent{
-            pub fn parse(bytes: &[u8])->Result<Self>{
-                let mut c = Cursor::new(bytes);
-                let result = reader::read_wire_binary(&mut c)?;
-
-                #init_fields
-                for sw in result {
-                    match (sw.field_number(), sw.wire_type()) {
-                        // (1, reader::WireType::Varint(v)) => {
-                        //     s = parser::parse_u32(*v)?;
-                        // }
-                        // (2, reader::WireType::Varint(v)) => {
-                        //     x = parser::parse_i64(*v)?;
-                        // }
-                        #build_parse_fields
-                        _ => (),
-                    }
-                }
-                Ok(Self {
-                    #build_fields
-                })
-            }
-            pub fn bytes(&self)-> Vec<u8>{
-                Vec::new()
-            }
-        }
-    };
-    q.into()
-}
-
-// build_struct_fields は パース結果の値を構造体にマッピングを行います。
-fn build_struct_fields(data: &syn::DataStruct) -> proc_macro2::TokenStream {
-    let build_fields = data.fields.iter().map(|f| {
-        let filed_indent = &f.ident;
-        quote! {
-            #filed_indent
-        }
-    });
-    quote! {
-        #(#build_fields,)*
-    }
-}
-
-// declare_for_init は パース処理における各フィールドの初期化を行います
-// 現在はすべてのフィールドを初期化するため、入力データに値がない場合でも正常終了します
-// また、現時点での初期化は 数値型のみ機能しています。
-fn declare_for_init(data: &syn::DataStruct) -> proc_macro2::TokenStream {
-    let init_fields = data.fields.iter().map(|f| {
-        let filed_indent = &f.ident;
-        let filed_ty = &f.ty;
-        // 一旦固定値は0で。
-        quote! {
-            let mut #filed_indent: #filed_ty = 0;
-        }
-    });
-    quote! {
-        #(#init_fields)*
     }
 }
