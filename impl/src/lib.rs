@@ -7,6 +7,10 @@ use syn::{parse_macro_input, spanned::Spanned, DeriveInput};
 #[proc_macro_derive(Proto, attributes(def))]
 pub fn derive_parse(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+    expand(input).into()
+}
+
+fn expand(input: DeriveInput) -> proc_macro2::TokenStream {
     let input_indent = format_ident!("{}", input.ident);
 
     let data = match input.data {
@@ -21,7 +25,7 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
 
     let build_parse_fields = match_in_parse(&data);
 
-    let q = quote! {
+    quote! {
         use std::io::Cursor;
         use anyhow::Result;
         use protowirers::{parser, reader};
@@ -46,8 +50,7 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
                 Vec::new()
             }
         }
-    };
-    q.into()
+    }
 }
 
 // build_struct_fields は パース結果の値を構造体にマッピングを行います。
