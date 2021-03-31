@@ -15,12 +15,6 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
     };
     let data = data.unwrap();
 
-    let build_fields = data.fields.iter().map(|f| {
-        let filed_indent = &f.ident;
-        quote! {
-            #filed_indent
-        }
-    });
     let init_fields = data.fields.iter().map(|f| {
         let filed_indent = &f.ident;
         let filed_ty = &f.ty;
@@ -109,9 +103,7 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
         #(#init_fields)*
     };
 
-    let build_fields = quote! {
-        #(#build_fields,)*
-    };
+    let build_fields = build_struct_fields(&data);
     let build_parse_fields = quote! {
         #(#build_parse_fields,)*
     };
@@ -149,4 +141,16 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
         }
     };
     q.into()
+}
+
+fn build_struct_fields(data: &syn::DataStruct) -> proc_macro2::TokenStream {
+    let build_fields = data.fields.iter().map(|f| {
+        let filed_indent = &f.ident;
+        quote! {
+            #filed_indent
+        }
+    });
+    quote! {
+        #(#build_fields,)*
+    }
 }
