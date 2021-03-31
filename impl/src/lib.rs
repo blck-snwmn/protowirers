@@ -15,23 +15,22 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
     };
     let data = data.unwrap();
 
-    let mut init_fields = Vec::new();
-    let mut build_fields = Vec::new();
-    let mut build_parse_fields = Vec::new();
-    for f in data.fields {
+    let build_fields = data.fields.iter().map(|f| {
+        let filed_indent = &f.ident;
+        quote! {
+            #filed_indent
+        }
+    });
+    let init_fields = data.fields.iter().map(|f| {
         let filed_indent = &f.ident;
         let filed_ty = &f.ty;
         // 一旦固定値は0で。
-        init_fields.push(quote! {
+        quote! {
             let mut #filed_indent: #filed_ty = 0;
-        });
-        build_fields.push(quote! {
-            #filed_indent
-        });
-        // atribute
-        // TODO error があっても全部走査したい
-        // error じゃないのが存在すれば、それを採用したい
-        // errorのみの場合、そのエラーを出すか、atributeが存在しないことを指定するかが悩ましい
+        }
+    });
+    let build_parse_fields = data.fields.iter().map(|f| {
+        let filed_indent = &f.ident;
         let x = f.attrs.iter().find_map(|a| {
             a.parse_meta().ok().and_then(|m| match m {
                 syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
@@ -99,12 +98,12 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
         }
         let def_type = def_type.unwrap();
 
-        build_parse_fields.push(quote! {
+        quote! {
             (#fieild_num, reader::WireType::Varint(v)) => {
                 #filed_indent = #def_type(*v)?;
             }
-        })
-    }
+        }
+    });
 
     let init_fields = quote! {
         #(#init_fields)*
