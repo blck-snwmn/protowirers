@@ -13,6 +13,7 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
 fn expand(input: DeriveInput) -> proc_macro2::TokenStream {
     let input_indent = format_ident!("{}", input.ident);
 
+    // TODO Struct以外が入力の場合、適切なコンパイルエラーのメッセージを表示する
     let data = match input.data {
         syn::Data::Struct(s) => Some(s),
         _ => None,
