@@ -133,6 +133,7 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
     q.into()
 }
 
+// build_struct_fields は パース結果の値を構造体にマッピングを行います。
 fn build_struct_fields(data: &syn::DataStruct) -> proc_macro2::TokenStream {
     let build_fields = data.fields.iter().map(|f| {
         let filed_indent = &f.ident;
@@ -145,6 +146,9 @@ fn build_struct_fields(data: &syn::DataStruct) -> proc_macro2::TokenStream {
     }
 }
 
+// declare_for_init は パース処理における各フィールドの初期化を行います
+// 現在はすべてのフィールドを初期化するため、入力データに値がない場合でも正常終了します
+// また、現時点での初期化は 数値型のみ機能しています。
 fn declare_for_init(data: &syn::DataStruct) -> proc_macro2::TokenStream {
     let init_fields = data.fields.iter().map(|f| {
         let filed_indent = &f.ident;
