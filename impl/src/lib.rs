@@ -20,11 +20,11 @@ fn expand(input: DeriveInput) -> proc_macro2::TokenStream {
     };
     let data = data.unwrap();
 
-    let init_fields = declare_for_init(&data);
+    let init_fields = build_declare_for_init(&data);
 
     let build_fields = build_struct_fields(&data);
 
-    let build_parse_fields = match_in_parse(&data);
+    let build_parse_fields = build_match_in_parse(&data);
 
     quote! {
         use std::io::Cursor;
@@ -54,7 +54,7 @@ fn expand(input: DeriveInput) -> proc_macro2::TokenStream {
     }
 }
 
-// build_struct_fields は パース結果の値を構造体にマッピングを行います。
+// build_struct_fields は パース結果の値を構造体にマッピング部を組み立てます
 fn build_struct_fields(data: &syn::DataStruct) -> proc_macro2::TokenStream {
     let build_fields = data.fields.iter().map(|f| {
         let filed_indent = &f.ident;
@@ -67,10 +67,10 @@ fn build_struct_fields(data: &syn::DataStruct) -> proc_macro2::TokenStream {
     }
 }
 
-// declare_for_init は パース処理における各フィールドの初期化を行います
+// declare_for_init は パース処理における各フィールドの初期化部を組み立てます
 // 現在はすべてのフィールドを初期化するため、入力データに値がない場合でも正常終了します
 // また、現時点での初期化は 数値型のみ機能しています。
-fn declare_for_init(data: &syn::DataStruct) -> proc_macro2::TokenStream {
+fn build_declare_for_init(data: &syn::DataStruct) -> proc_macro2::TokenStream {
     let init_fields = data.fields.iter().map(|f| {
         let filed_indent = &f.ident;
         let filed_ty = &f.ty;
@@ -84,7 +84,8 @@ fn declare_for_init(data: &syn::DataStruct) -> proc_macro2::TokenStream {
     }
 }
 
-fn match_in_parse(data: &syn::DataStruct) -> proc_macro2::TokenStream {
+// match_in_parse は パーサーのmatch部の処理を組み立てます
+fn build_match_in_parse(data: &syn::DataStruct) -> proc_macro2::TokenStream {
     let build_parse_fields = data.fields.iter().map(|f| {
         let filed_indent = &f.ident;
         let x = f.attrs.iter().find_map(|a| {
