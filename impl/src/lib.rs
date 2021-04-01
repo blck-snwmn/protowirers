@@ -125,16 +125,15 @@ fn build_match_in_parse(data: &syn::DataStruct) -> proc_macro2::TokenStream {
             if mnv_map.len() != 2 {
                 return Err(syn::Error::new_spanned(x.path, "xxx").to_compile_error());
             }
-            let fieild_num = mnv_map.get("field_num").and_then(|fnum| match fnum {
-                syn::Lit::Int(v) => Some(v),
-                _ => None,
-            });
-            if fieild_num.is_none() {
-                return Err(
-                    syn::Error::new_spanned(x.path, "field_num is not exist").to_compile_error()
-                );
-            }
-            let fieild_num = fieild_num.unwrap();
+            let fieild_num = mnv_map
+                .get("field_num")
+                .and_then(|fnum| match fnum {
+                    syn::Lit::Int(v) => Some(v),
+                    _ => None,
+                })
+                .ok_or(
+                    syn::Error::new_spanned(&x.path, "field_num is not exist").to_compile_error(),
+                )?;
 
             let def_type = mnv_map
                 .get("def_type")
@@ -146,13 +145,10 @@ fn build_match_in_parse(data: &syn::DataStruct) -> proc_macro2::TokenStream {
                     "int32" => Some(quote! {parser::parse_u32}),
                     "sint64" => Some(quote! {parser::parse_i64}),
                     _ => None,
-                });
-            if def_type.is_none() {
-                return Err(
-                    syn::Error::new_spanned(x.path, "def_type is not exist").to_compile_error()
-                );
-            }
-            let def_type = def_type.unwrap();
+                })
+                .ok_or(
+                    syn::Error::new_spanned(&x.path, "def_type is not exist").to_compile_error(),
+                )?;
 
             Ok(quote! {
                 (#fieild_num, reader::WireType::Varint(v)) => {
