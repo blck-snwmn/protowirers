@@ -86,81 +86,84 @@ fn build_declare_for_init(data: &syn::DataStruct) -> proc_macro2::TokenStream {
 
 // match_in_parse は パーサーのmatch部の処理を組み立てます
 fn build_match_in_parse(data: &syn::DataStruct) -> proc_macro2::TokenStream {
-    let build_parse_fields = data.fields.iter().map(|f| {
-        let filed_indent = &f.ident;
-        let x = f.attrs.iter().find_map(|a| {
-            a.parse_meta().ok().and_then(|m| match m {
-                syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
-                _ => None,
-            })
-        });
-        if x.is_none() {
-            return syn::Error::new_spanned(&f, "expected `def(\"...\")`")
-                .to_compile_error()
-                .into();
-        }
-        // TODO エラーメッセージをリッチにする
-        let x = x.unwrap();
-        if x.nested.len() != 2 {
-            return syn::Error::new_spanned(x.path, "zzz")
-                .to_compile_error()
-                .into();
-        }
-        let mnv_map: HashMap<String, &syn::Lit> = x
-            .nested
-            .iter()
-            .filter_map(|nm| match nm {
-                syn::NestedMeta::Meta(syn::Meta::NameValue(meta_name_value))
-                    if meta_name_value.path.is_ident("field_num")
-                        || meta_name_value.path.is_ident("def_type") =>
-                {
-                    Some(meta_name_value)
-                }
-                _ => None,
-            })
-            .map(|mnv| (mnv.path.get_ident().unwrap().to_string(), &mnv.lit))
-            .collect();
+    let build_parse_fields = data
+        .fields
+        .iter()
+        .map(|f| {
+            let filed_indent = &f.ident;
+            let x = f
+                .attrs
+                .iter()
+                .find_map(|a| {
+                    a.parse_meta().ok().and_then(|m| match m {
+                        syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
+                        _ => None,
+                    })
+                })
+                .ok_or(syn::Error::new_spanned(&f, "expected `def(\"...\")`").to_compile_error())?;
+            // TODO エラーメッセージをリッチにする
+            if x.nested.len() != 2 {
+                return Err(syn::Error::new_spanned(x.path, "zzz")
+                    .to_compile_error()
+                    .into());
+            }
+            let mnv_map: HashMap<String, &syn::Lit> = x
+                .nested
+                .iter()
+                .filter_map(|nm| match nm {
+                    syn::NestedMeta::Meta(syn::Meta::NameValue(meta_name_value))
+                        if meta_name_value.path.is_ident("field_num")
+                            || meta_name_value.path.is_ident("def_type") =>
+                    {
+                        Some(meta_name_value)
+                    }
+                    _ => None,
+                })
+                .map(|mnv| (mnv.path.get_ident().unwrap().to_string(), &mnv.lit))
+                .collect();
 
-        if mnv_map.len() != 2 {
-            return syn::Error::new_spanned(x.path, "xxx")
-                .to_compile_error()
-                .into();
-        }
-        let fieild_num = mnv_map.get("field_num").and_then(|fnum| match fnum {
-            syn::Lit::Int(v) => Some(v),
-            _ => None,
-        });
-        if fieild_num.is_none() {
-            return syn::Error::new_spanned(x.path, "field_num is not exist")
-                .to_compile_error()
-                .into();
-        }
-        let fieild_num = fieild_num.unwrap();
-
-        let def_type = mnv_map
-            .get("def_type")
-            .and_then(|fnum| match fnum {
-                syn::Lit::Str(v) => Some(v.value()),
-                _ => None,
-            })
-            .and_then(|dt| match dt.as_str() {
-                "int32" => Some(quote! {parser::parse_u32}),
-                "sint64" => Some(quote! {parser::parse_i64}),
+            if mnv_map.len() != 2 {
+                return Err(syn::Error::new_spanned(x.path, "xxx").to_compile_error());
+            }
+            let fieild_num = mnv_map.get("field_num").and_then(|fnum| match fnum {
+                syn::Lit::Int(v) => Some(v),
                 _ => None,
             });
-        if def_type.is_none() {
-            return syn::Error::new_spanned(x.path, "def_type is not exist")
-                .to_compile_error()
-                .into();
-        }
-        let def_type = def_type.unwrap();
-
-        quote! {
-            (#fieild_num, reader::WireType::Varint(v)) => {
-                #filed_indent = #def_type(*v)?;
+            if fieild_num.is_none() {
+                return Err(
+                    syn::Error::new_spanned(x.path, "field_num is not exist").to_compile_error()
+                );
             }
-        }
-    });
+            let fieild_num = fieild_num.unwrap();
+
+            let def_type = mnv_map
+                .get("def_type")
+                .and_then(|fnum| match fnum {
+                    syn::Lit::Str(v) => Some(v.value()),
+                    _ => None,
+                })
+                .and_then(|dt| match dt.as_str() {
+                    "int32" => Some(quote! {parser::parse_u32}),
+                    "sint64" => Some(quote! {parser::parse_i64}),
+                    _ => None,
+                });
+            if def_type.is_none() {
+                return Err(
+                    syn::Error::new_spanned(x.path, "def_type is not exist").to_compile_error()
+                );
+            }
+            let def_type = def_type.unwrap();
+
+            Ok(quote! {
+                (#fieild_num, reader::WireType::Varint(v)) => {
+                    #filed_indent = #def_type(*v)?;
+                }
+            })
+        })
+        .map(|x| match x {
+            Ok(t) => t,
+            Err(t) => t,
+        });
     quote! {
         #(#build_parse_fields,)*
     }
