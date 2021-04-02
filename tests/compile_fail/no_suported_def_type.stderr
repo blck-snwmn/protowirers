@@ -1,0 +1,5 @@
+error: no suport def_type. got=`xint32`.
+ --> $DIR/no_suported_def_type.rs:5:37
+  |
+5 |     #[def(field_num = 1, def_type = "xint32")]
+  |                                     ^^^^^^^^

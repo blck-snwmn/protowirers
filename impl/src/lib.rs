@@ -140,15 +140,20 @@ fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::Toke
             let def_type = mnv_map
                 .get("def_type")
                 .and_then(|fnum| match fnum {
-                    syn::Lit::Str(v) => Some(v.value()),
-                    _ => None,
-                })
-                .and_then(|dt| match dt.as_str() {
-                    "int32" => Some(quote! {parser::parse_u32}),
-                    "sint64" => Some(quote! {parser::parse_i64}),
+                    syn::Lit::Str(v) => Some(v),
                     _ => None,
                 })
                 .ok_or(syn::Error::new_spanned(&x.path, "def_type is not exist"))?;
+
+            let def_type = match def_type.value().as_str() {
+                "int32" => Some(quote! {parser::parse_u32}),
+                "sint64" => Some(quote! {parser::parse_i64}),
+                _ => None,
+            }
+            .ok_or(syn::Error::new(
+                def_type.span(),
+                format!("no suport def_type. got=`{}`. ", def_type.value()),
+            ))?;
 
             Ok(quote! {
                 (#fieild_num, reader::WireType::Varint(v)) => {
