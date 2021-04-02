@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, spanned::Spanned, DeriveInput};
+use syn::{parse_macro_input, DeriveInput};
 #[proc_macro_derive(Proto, attributes(def))]
 pub fn derive_parse(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -25,6 +25,11 @@ fn expand(input: DeriveInput) -> proc_macro2::TokenStream {
     let build_fields = build_struct_fields(&data);
 
     let build_parse_fields = build_match_in_parse(&data);
+    if let Err(e) = build_parse_fields {
+        return e.to_compile_error().into();
+    }
+
+    let build_parse_fields = build_parse_fields.unwrap();
 
     quote! {
         use std::io::Cursor;
@@ -85,7 +90,8 @@ fn build_declare_for_init(data: &syn::DataStruct) -> proc_macro2::TokenStream {
 }
 
 // match_in_parse は パーサーのmatch部の処理を組み立てます
-fn build_match_in_parse(data: &syn::DataStruct) -> proc_macro2::TokenStream {
+fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::TokenStream> {
+    // TODO エラーが１つでもあればエラーにする
     let build_parse_fields = data
         .fields
         .iter()
@@ -100,12 +106,10 @@ fn build_match_in_parse(data: &syn::DataStruct) -> proc_macro2::TokenStream {
                         _ => None,
                     })
                 })
-                .ok_or(syn::Error::new_spanned(&f, "expected `def(\"...\")`").to_compile_error())?;
+                .ok_or(syn::Error::new_spanned(&f, "expected `def(\"...\")`"))?;
             // TODO エラーメッセージをリッチにする
             if x.nested.len() != 2 {
-                return Err(syn::Error::new_spanned(x.path, "zzz")
-                    .to_compile_error()
-                    .into());
+                return Err(syn::Error::new_spanned(x.path, "zzz"));
             }
             let mnv_map: HashMap<String, &syn::Lit> = x
                 .nested
@@ -123,7 +127,7 @@ fn build_match_in_parse(data: &syn::DataStruct) -> proc_macro2::TokenStream {
                 .collect();
 
             if mnv_map.len() != 2 {
-                return Err(syn::Error::new_spanned(x.path, "xxx").to_compile_error());
+                return Err(syn::Error::new_spanned(x.path, "xxx"));
             }
             let fieild_num = mnv_map
                 .get("field_num")
@@ -131,9 +135,7 @@ fn build_match_in_parse(data: &syn::DataStruct) -> proc_macro2::TokenStream {
                     syn::Lit::Int(v) => Some(v),
                     _ => None,
                 })
-                .ok_or(
-                    syn::Error::new_spanned(&x.path, "field_num is not exist").to_compile_error(),
-                )?;
+                .ok_or(syn::Error::new_spanned(&x.path, "field_num is not exist"))?;
 
             let def_type = mnv_map
                 .get("def_type")
@@ -146,9 +148,7 @@ fn build_match_in_parse(data: &syn::DataStruct) -> proc_macro2::TokenStream {
                     "sint64" => Some(quote! {parser::parse_i64}),
                     _ => None,
                 })
-                .ok_or(
-                    syn::Error::new_spanned(&x.path, "def_type is not exist").to_compile_error(),
-                )?;
+                .ok_or(syn::Error::new_spanned(&x.path, "def_type is not exist"))?;
 
             Ok(quote! {
                 (#fieild_num, reader::WireType::Varint(v)) => {
@@ -156,11 +156,13 @@ fn build_match_in_parse(data: &syn::DataStruct) -> proc_macro2::TokenStream {
                 }
             })
         })
-        .map(|x| match x {
-            Ok(t) => t,
-            Err(t) => t,
-        });
-    quote! {
+        .try_fold(Vec::new(), |mut acc, r| {
+            r.and_then(|rr| {
+                acc.push(rr);
+                Ok(acc)
+            })
+        })?;
+    Ok(quote! {
         #(#build_parse_fields,)*
-    }
+    })
 }
