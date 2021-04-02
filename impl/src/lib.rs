@@ -97,18 +97,19 @@ fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::Toke
         .iter()
         .map(|f| {
             let filed_indent = &f.ident;
-            let m = f
+            let x = f
                 .attrs
                 .iter()
                 .find_map(|a| a.parse_meta().ok())
-                .ok_or(syn::Error::new_spanned(&f, "expected `def(\"...\")`"))?;
-            let x = match &m {
-                        syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
-                        _ => None,
-            }
-                .ok_or(syn::Error::new_spanned(&f, "expected `def(\"...\")`"))?;
+                .and_then(|m| match m {
+                    syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
+                    _ => None,
+                })
+                .ok_or(syn::Error::new_spanned(
+                    &f.ident,
+                    "#[def(...)] attribute requires.",
+                ))?;
 
-            // TODO エラーメッセージをリッチにする
             if x.nested.len() != 2 {
                 return Err(syn::Error::new_spanned(
                     &x.nested,
@@ -118,6 +119,7 @@ fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::Toke
                     ),
                 ));
             }
+
             let mnv_map: HashMap<String, &syn::Lit> = x
                 .nested
                 .iter()
@@ -134,8 +136,15 @@ fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::Toke
                 .collect();
 
             if mnv_map.len() != 2 {
-                return Err(syn::Error::new_spanned(x.path, "xxx"));
+                return Err(syn::Error::new_spanned(
+                    filed_indent,
+                    format!(
+                        "invalid num of sub field in #[def(...)]. got={}, expected=2",
+                        mnv_map.len()
+                    ),
+                ));
             }
+
             let fieild_num = mnv_map
                 .get("field_num")
                 .and_then(|fnum| match fnum {
