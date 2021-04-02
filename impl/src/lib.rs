@@ -97,19 +97,26 @@ fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::Toke
         .iter()
         .map(|f| {
             let filed_indent = &f.ident;
-            let x = f
+            let m = f
                 .attrs
                 .iter()
-                .find_map(|a| {
-                    a.parse_meta().ok().and_then(|m| match m {
+                .find_map(|a| a.parse_meta().ok())
+                .ok_or(syn::Error::new_spanned(&f, "expected `def(\"...\")`"))?;
+            let x = match &m {
                         syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
                         _ => None,
-                    })
-                })
+            }
                 .ok_or(syn::Error::new_spanned(&f, "expected `def(\"...\")`"))?;
+
             // TODO エラーメッセージをリッチにする
             if x.nested.len() != 2 {
-                return Err(syn::Error::new_spanned(x.path, "zzz"));
+                return Err(syn::Error::new_spanned(
+                    &x.nested,
+                    format!(
+                        "invalid num of sub field in #[def(...)]. got={}, expected=2",
+                        x.nested.len()
+                    ),
+                ));
             }
             let mnv_map: HashMap<String, &syn::Lit> = x
                 .nested
