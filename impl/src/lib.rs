@@ -89,9 +89,8 @@ fn build_declare_for_init(data: &syn::DataStruct) -> proc_macro2::TokenStream {
     }
 }
 
-// match_in_parse は パーサーのmatch部の処理を組み立てます
+// build_match_in_parse は パーサーのmatch部の処理を組み立てます
 fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::TokenStream> {
-    // TODO エラーが１つでもあればエラーにする
     let build_parse_fields = data
         .fields
         .iter()
