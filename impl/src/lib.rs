@@ -97,7 +97,7 @@ fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::Toke
         .iter()
         .map(|f| {
             let filed_indent = &f.ident;
-            let x = f
+            let ml = f
                 .attrs
                 .iter()
                 .find_map(|a| a.parse_meta().ok())
@@ -110,17 +110,17 @@ fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::Toke
                     "#[def(...)] attribute requires.",
                 ))?;
 
-            if x.nested.len() != 2 {
+            if ml.nested.len() != 2 {
                 return Err(syn::Error::new_spanned(
-                    &x.nested,
+                    &ml.nested,
                     format!(
                         "invalid num of sub field in #[def(...)]. got={}, expected=2",
-                        x.nested.len()
+                        ml.nested.len()
                     ),
                 ));
             }
 
-            let mnv_map: HashMap<String, &syn::Lit> = x
+            let mnv_map: HashMap<String, &syn::Lit> = ml
                 .nested
                 .iter()
                 .filter_map(|nm| match nm {
@@ -151,7 +151,7 @@ fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::Toke
                     syn::Lit::Int(v) => Some(v),
                     _ => None,
                 })
-                .ok_or(syn::Error::new_spanned(&x.path, "field_num is not exist"))?;
+                .ok_or(syn::Error::new_spanned(&ml.path, "field_num is not exist"))?;
 
             let def_type = mnv_map
                 .get("def_type")
@@ -159,7 +159,7 @@ fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::Toke
                     syn::Lit::Str(v) => Some(v),
                     _ => None,
                 })
-                .ok_or(syn::Error::new_spanned(&x.path, "def_type is not exist"))?;
+                .ok_or(syn::Error::new_spanned(&ml.path, "def_type is not exist"))?;
 
             let def_type = match def_type.value().as_str() {
                 "int32" => Some(quote! {parser::parse_u32}),
