@@ -139,7 +139,7 @@ fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::Toke
                 return Err(syn::Error::new_spanned(
                     filed_indent,
                     format!(
-                        "invalid num of sub field in #[def(...)]. got={}, expected=2",
+                        "invalid num of meta in #[def(...)]. got={}, expected=2",
                         mnv_map.len()
                     ),
                 ));
