@@ -32,6 +32,7 @@ fn expand(input: DeriveInput) -> proc_macro2::TokenStream {
 
     let build_parse_fields = build_parse_fields.unwrap();
 
+    // TODO 生成の仕方はdefault値で初期化するのではなく、Optionがよさそう
     quote! {
         use std::io::Cursor;
         use anyhow::Result;
