@@ -93,14 +93,7 @@ impl<'a> Field<'a> {
         let filed_indent = &self.original.ident;
         let a = &self.attr;
         let fieild_num = a.filed_num as u128;
-        let def_type = match a.def_type.as_ref() {
-            "int32" => Ok(quote! {parser::parse_u32}),
-            "sint64" => Ok(quote! {parser::parse_i64}),
-            _ => Err(syn::Error::new_spanned(
-                a.original,
-                "invalid num of sub field in #[def(...)]. ",
-            )),
-        }?;
+        let def_type = a.def_type.to_token_stream();
         Ok(quote! {
             (#fieild_num, reader::WireType::Varint(v)) => {
                 #filed_indent = #def_type(*v)?;
@@ -111,14 +104,14 @@ impl<'a> Field<'a> {
 pub struct Attribute<'a> {
     pub original: &'a syn::Attribute,
     pub filed_num: u64,
-    pub def_type: String,
+    pub def_type: DefType,
 }
 
 impl<'a> Attribute<'a> {
     fn from_syn(attrs: &'a [syn::Attribute], with_field: &syn::Field) -> syn::Result<Self> {
         let mut original: Option<&'a syn::Attribute> = None;
         let mut filed_num: Option<u64> = None;
-        let mut def_type: Option<String> = None;
+        let mut def_type: Option<DefType> = None;
 
         for attr in attrs {
             let meta_list = attr.parse_meta().ok().and_then(|m| match m {
@@ -173,17 +166,10 @@ impl<'a> Attribute<'a> {
                     }
                     let v = match named_value.lit {
                         syn::Lit::Str(ref v) => {
-                            let vv = v.value();
-                            match vv.as_ref() {
-                                "int32" | "sint64" => {
-                                    // TODO error を返すようにすると思うので、なにか値を返す
-                                    Ok(vv)
-                                }
-                                _ => Err(syn::Error::new_spanned(
-                                    &named_value.lit,
-                                    format!("no suport def_type. got=`{}`.", vv),
-                                )),
-                            }
+                            DefType::new(v.value()).ok_or(syn::Error::new_spanned(
+                                &named_value.lit,
+                                format!("no suport def_type. got=`{}`.", v.value()),
+                            ))
                         }
                         _ => Err(syn::Error::new_spanned(
                             &named_value.lit,
@@ -225,5 +211,27 @@ impl<'a> Attribute<'a> {
             filed_num: filed_num.unwrap(),
             def_type: def_type.unwrap(),
         })
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum DefType {
+    Int32,
+    Sint64,
+}
+
+impl DefType {
+    fn new(s: String) -> Option<Self> {
+        match s.as_ref() {
+            "int32" => Some(DefType::Int32),
+            "sint64" => Some(DefType::Sint64),
+            _ => None,
+        }
+    }
+    fn to_token_stream(&self) -> proc_macro2::TokenStream {
+        match &self {
+            DefType::Int32 => quote! {parser::parse_u32},
+            DefType::Sint64 => quote! {parser::parse_i64},
+        }
     }
 }
