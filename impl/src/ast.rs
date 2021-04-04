@@ -25,12 +25,7 @@ impl<'a> Struct<'a> {
     }
     // build_struct_fields は パース結果の値を構造体にマッピング部を組み立てます
     pub fn build_struct_fields(&self) -> proc_macro2::TokenStream {
-        let build_fields = self.fields.iter().map(|f| {
-            let filed_indent = &f.original.ident;
-            quote! {
-                #filed_indent
-            }
-        });
+        let build_fields = self.fields.iter().map(|f| f.build_struct_fields());
         quote! {
             #(#build_fields,)*
         }
@@ -98,6 +93,12 @@ impl<'a> Field<'a> {
             original: f,
             attr: attr,
         })
+    }
+    fn build_struct_fields(&self) -> proc_macro2::TokenStream {
+        let filed_indent = &self.original.ident;
+        quote! {
+            #filed_indent
+        }
     }
     fn build_declare_for_init(&self) -> proc_macro2::TokenStream {
         let f = self.original;
