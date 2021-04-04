@@ -40,15 +40,7 @@ impl<'a> Struct<'a> {
     // 現在はすべてのフィールドを初期化するため、入力データに値がない場合でも正常終了します
     // また、現時点での初期化は 数値型のみ機能しています。
     pub fn build_declare_for_init(&self) -> proc_macro2::TokenStream {
-        let init_fields = self.fields.iter().map(|f| {
-            let f = f.original;
-            let filed_indent = &f.ident;
-            let filed_ty = &f.ty;
-            // 一旦固定値は0で。
-            quote! {
-                let mut #filed_indent: #filed_ty = 0;
-            }
-        });
+        let init_fields = self.fields.iter().map(|f| f.build_declare_for_init());
         quote! {
             #(#init_fields)*
         }
@@ -106,6 +98,15 @@ impl<'a> Field<'a> {
             original: f,
             attr: attr,
         })
+    }
+    fn build_declare_for_init(&self) -> proc_macro2::TokenStream {
+        let f = self.original;
+        let filed_indent = &f.ident;
+        let filed_ty = &f.ty;
+        // 一旦固定値は0で。
+        quote! {
+            let mut #filed_indent: #filed_ty = 0;
+        }
     }
 }
 pub struct Attribute<'a> {
