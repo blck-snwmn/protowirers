@@ -10,30 +10,23 @@ use syn::{parse_macro_input, DeriveInput};
 #[proc_macro_derive(Proto, attributes(def))]
 pub fn derive_parse(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    expand(input).into()
+    expand(input)
+        .unwrap_or_else(|e| e.to_compile_error())
+        .into()
 }
 
-fn expand(input: DeriveInput) -> proc_macro2::TokenStream {
+fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let input_indent = format_ident!("{}", input.ident);
-    let input = Input::from_syn(&input);
-    if let Err(e) = input {
-        return e.to_compile_error().into();
-    }
-    let Input::Struct(data) = input.unwrap();
+    let Input::Struct(data) = Input::from_syn(&input)?;
 
     let init_fields = data.build_declare_for_init();
 
     let build_fields = data.build_struct_fields();
 
-    let build_parse_fields = data.build_match_case();
-    if let Err(e) = build_parse_fields {
-        return e.to_compile_error().into();
-    }
-
-    let build_parse_fields = build_parse_fields.unwrap();
+    let build_parse_fields = data.build_match_case()?;
 
     // TODO 生成の仕方はdefault値で初期化するのではなく、Optionがよさそう
-    quote! {
+    Ok(quote! {
         use std::io::Cursor;
         use anyhow::Result;
         use protowirers::{parser, reader};
@@ -58,5 +51,5 @@ fn expand(input: DeriveInput) -> proc_macro2::TokenStream {
                 Vec::new()
             }
         }
-    }
+    })
 }
