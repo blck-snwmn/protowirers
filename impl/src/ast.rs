@@ -142,24 +142,22 @@ impl<'a> Attribute<'a> {
 
                 if named_value.path.is_ident("field_num") {
                     if filed_num.is_some() {
-                        // TODO duplicate error
                         return Err(syn::Error::new_spanned(
                             &named_value,
                             "field_num is duplicated in #[def(...)]. ",
                         ));
                     }
-                    match named_value.lit {
-                        syn::Lit::Int(ref v) => {
-                            // TODO error を返すようにすると思うので、u64の値を返すようにする
-                            let v = v.base10_parse::<u64>();
-                            // TODO v is error => return invalid value error
-                            let v = v.unwrap();
-                            filed_num = Some(v);
-                        }
-                        _ => {
-                            // TODO return invalid type error
-                        }
-                    }
+                    let v = match named_value.lit {
+                        syn::Lit::Int(ref v) => Ok(v),
+                        _ => Err(syn::Error::new_spanned(
+                            &named_value.lit,
+                            "invalid value. value is integer only.",
+                        )),
+                    }?;
+                    let v = v.base10_parse::<u64>().map_err(|e| {
+                        syn::Error::new(v.span(), format!("faild to parse u64: {}", e))
+                    })?;
+                    filed_num = Some(v);
                 } else if named_value.path.is_ident("def_type") {
                     if def_type.is_some() {
                         return Err(syn::Error::new_spanned(

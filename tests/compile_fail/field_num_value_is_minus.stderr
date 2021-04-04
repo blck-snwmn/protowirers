@@ -1,0 +1,5 @@
+error: faild to parse u64: invalid digit found in string
+ --> $DIR/field_num_value_is_minus.rs:5:23
+  |
+5 |     #[def(field_num = -100, def_type = "int32")]
+  |                       ^

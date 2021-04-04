@@ -1,0 +1,5 @@
+error: invalid value. value is integer only.
+ --> $DIR/invalid_field_num_value.rs:5:23
+  |
+5 |     #[def(field_num = "1", def_type = "int32")]
+  |                       ^^^
