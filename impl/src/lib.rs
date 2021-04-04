@@ -23,7 +23,6 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let build_fields = data.build_struct_fields();
     let build_parse_fields = data.build_match_case();
 
-    // TODO 生成の仕方はdefault値で初期化するのではなく、Optionがよさそう
     Ok(quote! {
         use std::io::Cursor;
         use anyhow::Result;

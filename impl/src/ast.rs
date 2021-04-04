@@ -76,17 +76,19 @@ impl<'a> Field<'a> {
     }
     fn build_struct_fields(&self) -> proc_macro2::TokenStream {
         let filed_indent = &self.original.ident;
+
+        // すべてOptionalとして扱い、値が設定されていないフィールドはdefault値にする
         quote! {
-            #filed_indent
+            #filed_indent: #filed_indent.unwrap_or_default()
         }
     }
     fn build_declare_for_init(&self) -> proc_macro2::TokenStream {
         let f = self.original;
         let filed_indent = &f.ident;
         let filed_ty = &f.ty;
-        // 一旦固定値は0で。
+        // Noneで初期化
         quote! {
-            let mut #filed_indent: #filed_ty = 0;
+            let mut #filed_indent: Option<#filed_ty> = None;
         }
     }
 
@@ -97,7 +99,7 @@ impl<'a> Field<'a> {
         let def_type = a.def_type.to_token_stream();
         quote! {
             (#fieild_num, reader::WireType::Varint(v)) => {
-                #filed_indent = #def_type(*v)?;
+                #filed_indent = Some(#def_type(*v)?);
             }
         }
     }
