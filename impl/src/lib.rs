@@ -1,9 +1,14 @@
 extern crate proc_macro;
+
+mod ast;
+
 use std::collections::HashMap;
 
+use ast::Input;
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{parse_macro_input, DeriveInput};
+
 #[proc_macro_derive(Proto, attributes(def))]
 pub fn derive_parse(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -12,6 +17,13 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
 
 fn expand(input: DeriveInput) -> proc_macro2::TokenStream {
     let input_indent = format_ident!("{}", input.ident);
+    {
+        let input = Input::from_syn(&input);
+        if let Err(_) = input {
+        } else {
+            let _ = input.unwrap();
+        }
+    }
 
     // TODO Struct以外が入力の場合、適切なコンパイルエラーのメッセージを表示する
     let data = match input.data {
