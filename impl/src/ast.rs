@@ -43,36 +43,15 @@ impl<'a> Struct<'a> {
 
     // build_match_in_parse は パーサーのmatch部の処理を組み立てます
     pub fn build_match_case(&self) -> syn::Result<proc_macro2::TokenStream> {
-        let build_parse_fields = self
-            .fields
-            .iter()
-            .map(|f| {
-                let filed_indent = &f.original.ident;
-                let a = &f.attr;
-                let fieild_num = a.filed_num as u128;
-                let def_type = match a.def_type.as_ref() {
-                    "int32" => Ok(quote! {parser::parse_u32}),
-                    "sint64" => Ok(quote! {parser::parse_i64}),
-                    _ => Err(syn::Error::new_spanned(
-                        a.original,
-                        "invalid num of sub field in #[def(...)]. ",
-                    )),
-                }?;
-                Ok(quote! {
-                    (#fieild_num, reader::WireType::Varint(v)) => {
-                        #filed_indent = #def_type(*v)?;
-                    }
+        let build_parse_fields = self.fields.iter().map(|f| f.build_match_case()).try_fold(
+            Vec::new(),
+            |mut acc, r: syn::Result<proc_macro2::TokenStream>| {
+                r.and_then(|rr| {
+                    acc.push(rr);
+                    Ok(acc)
                 })
-            })
-            .try_fold(
-                Vec::new(),
-                |mut acc, r: syn::Result<proc_macro2::TokenStream>| {
-                    r.and_then(|rr| {
-                        acc.push(rr);
-                        Ok(acc)
-                    })
-                },
-            )?;
+            },
+        )?;
         Ok(quote! {
             #(#build_parse_fields,)*
         })
@@ -108,6 +87,25 @@ impl<'a> Field<'a> {
         quote! {
             let mut #filed_indent: #filed_ty = 0;
         }
+    }
+
+    fn build_match_case(&self) -> syn::Result<proc_macro2::TokenStream> {
+        let filed_indent = &self.original.ident;
+        let a = &self.attr;
+        let fieild_num = a.filed_num as u128;
+        let def_type = match a.def_type.as_ref() {
+            "int32" => Ok(quote! {parser::parse_u32}),
+            "sint64" => Ok(quote! {parser::parse_i64}),
+            _ => Err(syn::Error::new_spanned(
+                a.original,
+                "invalid num of sub field in #[def(...)]. ",
+            )),
+        }?;
+        Ok(quote! {
+            (#fieild_num, reader::WireType::Varint(v)) => {
+                #filed_indent = #def_type(*v)?;
+            }
+        })
     }
 }
 pub struct Attribute<'a> {
