@@ -116,6 +116,7 @@ impl<'a> Attribute<'a> {
         let mut filed_num: Option<u64> = None;
         let mut def_type: Option<DefType> = None;
 
+        // TODO loopをやめて、def Attributeを１つだけ取得し、後続処理を行うように直す
         for attr in attrs {
             let meta_list = attr.parse_meta().ok().and_then(|m| match m {
                 syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
