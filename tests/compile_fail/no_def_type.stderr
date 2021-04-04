@@ -1,5 +1,5 @@
-error: invalid num of meta in #[def(...)]. got=1, expected=2
- --> $DIR/no_def_type.rs:6:5
+error: def_type is required in #[def("...")]
+ --> $DIR/no_def_type.rs:5:5
   |
-6 |     s: u32,
-  |     ^
+5 |     #[def(field_num = 1)]
+  |     ^^^^^^^^^^^^^^^^^^^^^

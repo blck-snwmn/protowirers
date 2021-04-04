@@ -1,3 +1,4 @@
+use quote::quote;
 pub enum Input<'a> {
     Struct(Struct<'a>),
 }
@@ -22,7 +23,75 @@ impl<'a> Struct<'a> {
             fields: Field::from_syns(&data.fields)?,
         })
     }
+    // build_struct_fields は パース結果の値を構造体にマッピング部を組み立てます
+    pub fn build_struct_fields(&self) -> proc_macro2::TokenStream {
+        let build_fields = self.fields.iter().map(|f| {
+            let filed_indent = &f.original.ident;
+            quote! {
+                #filed_indent
+            }
+        });
+        quote! {
+            #(#build_fields,)*
+        }
+    }
+
+    // declare_for_init は パース処理における各フィールドの初期化部を組み立てます
+    // 現在はすべてのフィールドを初期化するため、入力データに値がない場合でも正常終了します
+    // また、現時点での初期化は 数値型のみ機能しています。
+    pub fn build_declare_for_init(&self) -> proc_macro2::TokenStream {
+        let init_fields = self.fields.iter().map(|f| {
+            let f = f.original;
+            let filed_indent = &f.ident;
+            let filed_ty = &f.ty;
+            // 一旦固定値は0で。
+            quote! {
+                let mut #filed_indent: #filed_ty = 0;
+            }
+        });
+        quote! {
+            #(#init_fields)*
+        }
+    }
+
+    // build_match_in_parse は パーサーのmatch部の処理を組み立てます
+    pub fn build_match_case(&self) -> syn::Result<proc_macro2::TokenStream> {
+        let build_parse_fields = self
+            .fields
+            .iter()
+            .map(|f| {
+                let filed_indent = &f.original.ident;
+                let a = &f.attr;
+                let fieild_num = a.filed_num as u128;
+                let def_type = match a.def_type.as_ref() {
+                    "int32" => Ok(quote! {parser::parse_u32}),
+                    "sint64" => Ok(quote! {parser::parse_i64}),
+                    _ => Err(syn::Error::new_spanned(
+                        a.original,
+                        "invalid num of sub field in #[def(...)]. ",
+                    )),
+                }?;
+                Ok(quote! {
+                    (#fieild_num, reader::WireType::Varint(v)) => {
+                        #filed_indent = #def_type(*v)?;
+                    }
+                })
+            })
+            .try_fold(
+                Vec::new(),
+                |mut acc, r: syn::Result<proc_macro2::TokenStream>| {
+                    r.and_then(|rr| {
+                        acc.push(rr);
+                        Ok(acc)
+                    })
+                },
+            )?;
+        Ok(quote! {
+            #(#build_parse_fields,)*
+        })
+    }
 }
+
 pub struct Field<'a> {
     pub original: &'a syn::Field,
     pub attr: Attribute<'a>,
@@ -46,7 +115,7 @@ pub struct Attribute<'a> {
 }
 
 impl<'a> Attribute<'a> {
-    fn from_syn(attrs: &'a [syn::Attribute], with_field: &'a syn::Field) -> syn::Result<Self> {
+    fn from_syn(attrs: &'a [syn::Attribute], with_field: &syn::Field) -> syn::Result<Self> {
         let mut original: Option<&'a syn::Attribute> = None;
         let mut filed_num: Option<u64> = None;
         let mut def_type: Option<String> = None;
@@ -78,6 +147,10 @@ impl<'a> Attribute<'a> {
                 if named_value.path.is_ident("field_num") {
                     if filed_num.is_some() {
                         // TODO duplicate error
+                        return Err(syn::Error::new_spanned(
+                            &named_value,
+                            "field_num is duplicated in #[def(...)]. ",
+                        ));
                     }
                     match named_value.lit {
                         syn::Lit::Int(ref v) => {
@@ -93,23 +166,31 @@ impl<'a> Attribute<'a> {
                     }
                 } else if named_value.path.is_ident("def_type") {
                     if def_type.is_some() {
-                        // TODO duplicate error
+                        return Err(syn::Error::new_spanned(
+                            &named_value,
+                            "def_type is duplicated in #[def(...)].",
+                        ));
                     }
-                    match named_value.lit {
+                    let v = match named_value.lit {
                         syn::Lit::Str(ref v) => {
                             let vv = v.value();
                             match vv.as_ref() {
                                 "int32" | "sint64" => {
                                     // TODO error を返すようにすると思うので、なにか値を返す
-                                    def_type = Some(vv)
+                                    Ok(vv)
                                 }
-                                _ => {
-                                    // unsuported type
-                                }
+                                _ => Err(syn::Error::new_spanned(
+                                    &named_value.lit,
+                                    format!("no suport def_type. got=`{}`.", vv),
+                                )),
                             }
                         }
-                        _ => {}
-                    }
+                        _ => Err(syn::Error::new_spanned(
+                            &named_value.lit,
+                            "invalid num of sub field in #[def(...)]. ",
+                        )),
+                    }?;
+                    def_type = Some(v);
                 } else {
                     // unsuported attribute metadata
                 }
@@ -119,8 +200,8 @@ impl<'a> Attribute<'a> {
         if original.is_none() {
             // required
             return Err(syn::Error::new_spanned(
-                with_field,
-                "suport data is only Sturct",
+                &with_field.ident,
+                "#[def(...)] attribute is required",
             ));
         }
         let original = original.unwrap();
@@ -128,14 +209,14 @@ impl<'a> Attribute<'a> {
             // required
             return Err(syn::Error::new_spanned(
                 original,
-                "suport data is only Sturct",
+                "filed_num is required in #[def(...)]",
             ));
         }
         if def_type.is_none() {
             // required
             return Err(syn::Error::new_spanned(
                 original,
-                "suport data is only Sturct",
+                "def_type is required in #[def(\"...\")]",
             ));
         }
 

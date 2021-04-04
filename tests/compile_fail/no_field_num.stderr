@@ -1,5 +1,5 @@
-error: invalid num of meta in #[def(...)]. got=1, expected=2
- --> $DIR/no_field_num.rs:6:5
+error: filed_num is required in #[def(...)]
+ --> $DIR/no_field_num.rs:5:5
   |
-6 |     s: u32,
-  |     ^
+5 |     #[def(def_type = "int32")]
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^

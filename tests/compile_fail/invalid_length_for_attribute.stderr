@@ -1,5 +1,0 @@
-error: invalid num of sub field in #[def(...)]. got=3, expected=2
- --> $DIR/invalid_length_for_attribute.rs:5:11
-  |
-5 |     #[def(field_num = 1, def_type = "int32", def_type = "int32")]
-  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

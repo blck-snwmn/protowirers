@@ -2,8 +2,6 @@ extern crate proc_macro;
 
 mod ast;
 
-use std::collections::HashMap;
-
 use ast::Input;
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
@@ -17,26 +15,17 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
 
 fn expand(input: DeriveInput) -> proc_macro2::TokenStream {
     let input_indent = format_ident!("{}", input.ident);
-    {
-        let input = Input::from_syn(&input);
-        if let Err(_) = input {
-        } else {
-            let _ = input.unwrap();
-        }
+    let input = Input::from_syn(&input);
+    if let Err(e) = input {
+        return e.to_compile_error().into();
     }
+    let Input::Struct(data) = input.unwrap();
 
-    // TODO Struct以外が入力の場合、適切なコンパイルエラーのメッセージを表示する
-    let data = match input.data {
-        syn::Data::Struct(s) => Some(s),
-        _ => None,
-    };
-    let data = data.unwrap();
+    let init_fields = data.build_declare_for_init();
 
-    let init_fields = build_declare_for_init(&data);
+    let build_fields = data.build_struct_fields();
 
-    let build_fields = build_struct_fields(&data);
-
-    let build_parse_fields = build_match_in_parse(&data);
+    let build_parse_fields = data.build_match_case();
     if let Err(e) = build_parse_fields {
         return e.to_compile_error().into();
     }
@@ -69,132 +58,4 @@ fn expand(input: DeriveInput) -> proc_macro2::TokenStream {
             }
         }
     }
-}
-
-// build_struct_fields は パース結果の値を構造体にマッピング部を組み立てます
-fn build_struct_fields(data: &syn::DataStruct) -> proc_macro2::TokenStream {
-    let build_fields = data.fields.iter().map(|f| {
-        let filed_indent = &f.ident;
-        quote! {
-            #filed_indent
-        }
-    });
-    quote! {
-        #(#build_fields,)*
-    }
-}
-
-// declare_for_init は パース処理における各フィールドの初期化部を組み立てます
-// 現在はすべてのフィールドを初期化するため、入力データに値がない場合でも正常終了します
-// また、現時点での初期化は 数値型のみ機能しています。
-fn build_declare_for_init(data: &syn::DataStruct) -> proc_macro2::TokenStream {
-    let init_fields = data.fields.iter().map(|f| {
-        let filed_indent = &f.ident;
-        let filed_ty = &f.ty;
-        // 一旦固定値は0で。
-        quote! {
-            let mut #filed_indent: #filed_ty = 0;
-        }
-    });
-    quote! {
-        #(#init_fields)*
-    }
-}
-
-// build_match_in_parse は パーサーのmatch部の処理を組み立てます
-fn build_match_in_parse(data: &syn::DataStruct) -> syn::Result<proc_macro2::TokenStream> {
-    let build_parse_fields = data
-        .fields
-        .iter()
-        .map(|f| {
-            let filed_indent = &f.ident;
-            let ml = f
-                .attrs
-                .iter()
-                .find_map(|a| a.parse_meta().ok())
-                .and_then(|m| match m {
-                    syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
-                    _ => None,
-                })
-                .ok_or(syn::Error::new_spanned(
-                    &f.ident,
-                    "#[def(...)] attribute requires.",
-                ))?;
-
-            if ml.nested.len() != 2 {
-                return Err(syn::Error::new_spanned(
-                    &ml.nested,
-                    format!(
-                        "invalid num of sub field in #[def(...)]. got={}, expected=2",
-                        ml.nested.len()
-                    ),
-                ));
-            }
-
-            let mnv_map: HashMap<String, &syn::Lit> = ml
-                .nested
-                .iter()
-                .filter_map(|nm| match nm {
-                    syn::NestedMeta::Meta(syn::Meta::NameValue(meta_name_value))
-                        if meta_name_value.path.is_ident("field_num")
-                            || meta_name_value.path.is_ident("def_type") =>
-                    {
-                        Some(meta_name_value)
-                    }
-                    _ => None,
-                })
-                .map(|mnv| (mnv.path.get_ident().unwrap().to_string(), &mnv.lit))
-                .collect();
-
-            if mnv_map.len() != 2 {
-                return Err(syn::Error::new_spanned(
-                    filed_indent,
-                    format!(
-                        "invalid num of meta in #[def(...)]. got={}, expected=2",
-                        mnv_map.len()
-                    ),
-                ));
-            }
-
-            let fieild_num = mnv_map
-                .get("field_num")
-                .and_then(|fnum| match fnum {
-                    syn::Lit::Int(v) => Some(v),
-                    _ => None,
-                })
-                .ok_or(syn::Error::new_spanned(&ml.path, "field_num is not exist"))?;
-
-            let def_type = mnv_map
-                .get("def_type")
-                .and_then(|fnum| match fnum {
-                    syn::Lit::Str(v) => Some(v),
-                    _ => None,
-                })
-                .ok_or(syn::Error::new_spanned(&ml.path, "def_type is not exist"))?;
-
-            let def_type = match def_type.value().as_str() {
-                "int32" => Some(quote! {parser::parse_u32}),
-                "sint64" => Some(quote! {parser::parse_i64}),
-                _ => None,
-            }
-            .ok_or(syn::Error::new(
-                def_type.span(),
-                format!("no suport def_type. got=`{}`. ", def_type.value()),
-            ))?;
-
-            Ok(quote! {
-                (#fieild_num, reader::WireType::Varint(v)) => {
-                    #filed_indent = #def_type(*v)?;
-                }
-            })
-        })
-        .try_fold(Vec::new(), |mut acc, r| {
-            r.and_then(|rr| {
-                acc.push(rr);
-                Ok(acc)
-            })
-        })?;
-    Ok(quote! {
-        #(#build_parse_fields,)*
-    })
 }
