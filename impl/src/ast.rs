@@ -42,19 +42,20 @@ impl<'a> Struct<'a> {
     }
 
     // build_match_in_parse は パーサーのmatch部の処理を組み立てます
-    pub fn build_match_case(&self) -> syn::Result<proc_macro2::TokenStream> {
-        let build_parse_fields = self.fields.iter().map(|f| f.build_match_case()).try_fold(
-            Vec::new(),
-            |mut acc, r: syn::Result<proc_macro2::TokenStream>| {
-                r.and_then(|rr| {
-                    acc.push(rr);
-                    Ok(acc)
-                })
-            },
-        )?;
-        Ok(quote! {
+    pub fn build_match_case(&self) -> proc_macro2::TokenStream {
+        let build_parse_fields = self.fields.iter().map(|f| f.build_match_case());
+        // .try_fold(
+        //     Vec::new(),
+        //     |mut acc, r: syn::Result<proc_macro2::TokenStream>| {
+        //         r.and_then(|rr| {
+        //             acc.push(rr);
+        //             Ok(acc)
+        //         })
+        //     },
+        // )?;
+        quote! {
             #(#build_parse_fields,)*
-        })
+        }
     }
 }
 
@@ -89,16 +90,16 @@ impl<'a> Field<'a> {
         }
     }
 
-    fn build_match_case(&self) -> syn::Result<proc_macro2::TokenStream> {
+    fn build_match_case(&self) -> proc_macro2::TokenStream {
         let filed_indent = &self.original.ident;
         let a = &self.attr;
         let fieild_num = a.filed_num as u128;
         let def_type = a.def_type.to_token_stream();
-        Ok(quote! {
+        quote! {
             (#fieild_num, reader::WireType::Varint(v)) => {
                 #filed_indent = #def_type(*v)?;
             }
-        })
+        }
     }
 }
 pub struct Attribute<'a> {

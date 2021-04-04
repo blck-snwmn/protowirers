@@ -20,10 +20,8 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let Input::Struct(data) = Input::from_syn(&input)?;
 
     let init_fields = data.build_declare_for_init();
-
     let build_fields = data.build_struct_fields();
-
-    let build_parse_fields = data.build_match_case()?;
+    let build_parse_fields = data.build_match_case();
 
     // TODO 生成の仕方はdefault値で初期化するのではなく、Optionがよさそう
     Ok(quote! {
