@@ -129,13 +129,12 @@ impl<'a> Attribute<'a> {
         let mut def_type: Option<DefType> = None;
         for nested_meta in &meta_list.nested {
             let named_value = match nested_meta {
-                syn::NestedMeta::Meta(syn::Meta::NameValue(meta_name_value)) => {
-                    Some(meta_name_value)
-                }
-                _ => None,
-            };
-            // if named_value is None -> return error
-            let named_value = named_value.unwrap();
+                syn::NestedMeta::Meta(syn::Meta::NameValue(meta_name_value)) => Ok(meta_name_value),
+                _ => Err(syn::Error::new_spanned(
+                    nested_meta,
+                    "only `foo = bar` format is allowed. ",
+                )),
+            }?;
 
             if named_value.path.is_ident("field_num") {
                 if filed_num.is_some() {
