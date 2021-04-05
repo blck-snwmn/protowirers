@@ -175,6 +175,10 @@ impl<'a> Attribute<'a> {
                 def_type = Some(v);
             } else {
                 // unsuported attribute metadata
+                return Err(syn::Error::new_spanned(
+                    named_value,
+                    "unsuported meta data in #[def(...)]. ",
+                ));
             }
         }
 
