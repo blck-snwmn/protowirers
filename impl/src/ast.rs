@@ -112,87 +112,72 @@ pub struct Attribute<'a> {
 
 impl<'a> Attribute<'a> {
     fn from_syn(attrs: &'a [syn::Attribute], with_field: &syn::Field) -> syn::Result<Self> {
-        let mut original: Option<&'a syn::Attribute> = None;
+        let (original, meta_list): (&'a syn::Attribute, syn::MetaList) = attrs
+            .iter()
+            .find_map(|attr| {
+                let ml = attr.parse_meta().ok().and_then(|m| match m {
+                    syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
+                    _ => None,
+                })?;
+                return Some((attr, ml));
+            })
+            .ok_or_else(|| {
+                syn::Error::new_spanned(&with_field.ident, "#[def(...)] attribute is required")
+            })?;
+
         let mut filed_num: Option<u64> = None;
         let mut def_type: Option<DefType> = None;
-
-        // TODO loopをやめて、def Attributeを１つだけ取得し、後続処理を行うように直す
-        for attr in attrs {
-            let meta_list = attr.parse_meta().ok().and_then(|m| match m {
-                syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
-                _ => None,
-            });
-            if meta_list.is_none() {
-                continue;
-            }
-            if original.is_some() {
-                // TODO return error
-            }
-            original = Some(attr);
-
-            let meta_list = meta_list.unwrap();
-            for nested_meta in &meta_list.nested {
-                let named_value = match nested_meta {
-                    syn::NestedMeta::Meta(syn::Meta::NameValue(meta_name_value)) => {
-                        Some(meta_name_value)
-                    }
-                    _ => None,
-                };
-                // if named_value is None -> return error
-                let named_value = named_value.unwrap();
-
-                if named_value.path.is_ident("field_num") {
-                    if filed_num.is_some() {
-                        return Err(syn::Error::new_spanned(
-                            &named_value,
-                            "field_num is duplicated in #[def(...)]. ",
-                        ));
-                    }
-                    let v = match named_value.lit {
-                        syn::Lit::Int(ref v) => Ok(v),
-                        _ => Err(syn::Error::new_spanned(
-                            &named_value.lit,
-                            "invalid value. value is integer only.",
-                        )),
-                    }?;
-                    let v = v.base10_parse::<u64>().map_err(|e| {
-                        syn::Error::new(v.span(), format!("faild to parse u64: {}", e))
-                    })?;
-                    filed_num = Some(v);
-                } else if named_value.path.is_ident("def_type") {
-                    if def_type.is_some() {
-                        return Err(syn::Error::new_spanned(
-                            &named_value,
-                            "def_type is duplicated in #[def(...)].",
-                        ));
-                    }
-                    let v = match named_value.lit {
-                        syn::Lit::Str(ref v) => {
-                            DefType::new(v.value()).ok_or(syn::Error::new_spanned(
-                                &named_value.lit,
-                                format!("no suport def_type. got=`{}`.", v.value()),
-                            ))
-                        }
-                        _ => Err(syn::Error::new_spanned(
-                            &named_value.lit,
-                            "invalid num of sub field in #[def(...)]. ",
-                        )),
-                    }?;
-                    def_type = Some(v);
-                } else {
-                    // unsuported attribute metadata
+        for nested_meta in &meta_list.nested {
+            let named_value = match nested_meta {
+                syn::NestedMeta::Meta(syn::Meta::NameValue(meta_name_value)) => {
+                    Some(meta_name_value)
                 }
+                _ => None,
+            };
+            // if named_value is None -> return error
+            let named_value = named_value.unwrap();
+
+            if named_value.path.is_ident("field_num") {
+                if filed_num.is_some() {
+                    return Err(syn::Error::new_spanned(
+                        &named_value,
+                        "field_num is duplicated in #[def(...)]. ",
+                    ));
+                }
+                let v = match named_value.lit {
+                    syn::Lit::Int(ref v) => Ok(v),
+                    _ => Err(syn::Error::new_spanned(
+                        &named_value.lit,
+                        "invalid value. value is integer only.",
+                    )),
+                }?;
+                let v = v
+                    .base10_parse::<u64>()
+                    .map_err(|e| syn::Error::new(v.span(), format!("faild to parse u64: {}", e)))?;
+                filed_num = Some(v);
+            } else if named_value.path.is_ident("def_type") {
+                if def_type.is_some() {
+                    return Err(syn::Error::new_spanned(
+                        &named_value,
+                        "def_type is duplicated in #[def(...)].",
+                    ));
+                }
+                let v = match named_value.lit {
+                    syn::Lit::Str(ref v) => DefType::new(v.value()).ok_or(syn::Error::new_spanned(
+                        &named_value.lit,
+                        format!("no suport def_type. got=`{}`.", v.value()),
+                    )),
+                    _ => Err(syn::Error::new_spanned(
+                        &named_value.lit,
+                        "invalid num of sub field in #[def(...)]. ",
+                    )),
+                }?;
+                def_type = Some(v);
+            } else {
+                // unsuported attribute metadata
             }
         }
 
-        if original.is_none() {
-            // required
-            return Err(syn::Error::new_spanned(
-                &with_field.ident,
-                "#[def(...)] attribute is required",
-            ));
-        }
-        let original = original.unwrap();
         if filed_num.is_none() {
             // required
             return Err(syn::Error::new_spanned(
