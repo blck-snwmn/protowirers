@@ -112,18 +112,29 @@ pub struct Attribute<'a> {
 
 impl<'a> Attribute<'a> {
     fn from_syn(attrs: &'a [syn::Attribute], with_field: &syn::Field) -> syn::Result<Self> {
-        let (original, meta_list): (&'a syn::Attribute, syn::MetaList) = attrs
+        let mut a: Vec<(&'a syn::Attribute, syn::MetaList)> = attrs
             .iter()
-            .find_map(|attr| {
+            .filter_map(|attr| {
                 let ml = attr.parse_meta().ok().and_then(|m| match m {
                     syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
                     _ => None,
                 })?;
                 return Some((attr, ml));
             })
-            .ok_or_else(|| {
-                syn::Error::new_spanned(&with_field.ident, "#[def(...)] attribute is required")
-            })?;
+            .collect();
+        if a.len() == 0 {
+            return Err(syn::Error::new_spanned(
+                &with_field.ident,
+                "#[def(...)] attribute is required",
+            ));
+        } else if a.len() > 1 {
+            return Err(syn::Error::new_spanned(
+                &with_field,
+                "only one #[def(...)] attribute is allowed",
+            ));
+        }
+
+        let (original, meta_list): (&'a syn::Attribute, syn::MetaList) = a.remove(0);
 
         let mut filed_num: Option<u64> = None;
         let mut def_type: Option<DefType> = None;

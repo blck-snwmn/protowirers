@@ -1,0 +1,7 @@
+error: only one #[def(...)] attribute is allowed
+ --> $DIR/duplicate_def_attribute.rs:5:5
+  |
+5 | /     #[def(field_num = 1, def_type = "int32")]
+6 | |     #[def(field_num = 1, def_type = "int32")]
+7 | |     s: u32,
+  | |__________^
