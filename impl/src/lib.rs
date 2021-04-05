@@ -16,6 +16,8 @@ pub fn derive_parse(input: TokenStream) -> TokenStream {
 }
 
 fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+    // TODO エラーメッセージ改善
+    // atribute自体がエラーの場合、() が表示されてしまう, など
     let input_indent = format_ident!("{}", input.ident);
     let Input::Struct(data) = Input::from_syn(&input)?;
 
