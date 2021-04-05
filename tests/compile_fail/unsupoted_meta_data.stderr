@@ -1,5 +1,5 @@
 error: unsuported meta data in #[def(...)].
- --> $DIR/unsupoted_meta_datacopy.rs:5:48
+ --> $DIR/unsupoted_meta_data.rs:5:48
   |
 5 |     #[def(field_num = 100, def_type = "int32", xxxxx = "int32")]
   |                                                ^^^^^^^^^^^^^^^
