@@ -96,7 +96,7 @@ impl<'a> Field<'a> {
         let filed_indent = &self.original.ident;
         let a = &self.attr;
         let fieild_num = a.filed_num as u128;
-        let def_type = a.def_type.to_token_stream();
+        let def_type = a.def_type.to_parse_function();
         quote! {
             (#fieild_num, reader::WireType::Varint(v)) => {
                 #filed_indent = Some(#def_type(*v)?);
@@ -229,7 +229,7 @@ impl DefType {
             _ => None,
         }
     }
-    fn to_token_stream(&self) -> proc_macro2::TokenStream {
+    fn to_parse_function(&self) -> proc_macro2::TokenStream {
         match &self {
             DefType::Int32 => quote! {parser::parse_u32},
             DefType::Sint64 => quote! {parser::parse_i64},
