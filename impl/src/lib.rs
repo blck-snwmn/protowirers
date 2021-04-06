@@ -28,12 +28,12 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     Ok(quote! {
         use std::io::Cursor;
         use anyhow::Result;
-        use protowirers::{parser, reader};
+        use protowirers::{parser, decode};
 
         impl #input_indent{
             pub fn parse(bytes: &[u8])->Result<Self>{
                 let mut c = Cursor::new(bytes);
-                let result = reader::read_wire_binary(&mut c)?;
+                let result = decode::read_wire_binary(&mut c)?;
 
                 #init_fields
                 for sw in result {

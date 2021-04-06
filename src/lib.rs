@@ -1,5 +1,6 @@
+pub mod bytes;
+pub mod decode;
 pub mod parser;
-pub mod reader;
 mod zigzag;
 
 pub use protowirers_impl::*;

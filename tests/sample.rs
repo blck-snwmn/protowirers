@@ -6,21 +6,21 @@ struct Sample {
     x: i64,
 }
 use anyhow::Result;
-use protowirers::{parser, reader};
+use protowirers::{decode, parser};
 use std::io::Cursor;
 impl Sample {
     pub fn parse(bytes: &[u8]) -> Result<Self> {
         let mut c = Cursor::new(bytes);
-        let result = reader::read_wire_binary(&mut c)?;
+        let result = decode::read_wire_binary(&mut c)?;
 
         let mut s: u32 = 0;
         let mut x: i64 = 0;
         for sw in result {
             match (sw.field_number(), sw.wire_type()) {
-                (1, reader::WireType::Varint(v)) => {
+                (1, decode::WireType::Varint(v)) => {
                     s = parser::parse_u32(*v)?;
                 }
-                (2, reader::WireType::Varint(v)) => {
+                (2, decode::WireType::Varint(v)) => {
                     x = parser::parse_i64(*v)?;
                 }
                 _ => (),
