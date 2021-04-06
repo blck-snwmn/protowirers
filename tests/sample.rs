@@ -11,7 +11,7 @@ use std::io::Cursor;
 impl Sample {
     pub fn parse(bytes: &[u8]) -> Result<Self> {
         let mut c = Cursor::new(bytes);
-        let result = decode::read_wire_binary(&mut c)?;
+        let result = decode::decode_wire_binary(&mut c)?;
 
         let mut s: u32 = 0;
         let mut x: i64 = 0;

@@ -7,7 +7,7 @@ use std::{
 use anyhow::Result;
 use thiserror::Error;
 #[derive(Error, Debug)]
-enum ReadError {
+enum DecodeError {
     #[error("unexpected format. end come after MSB is 0")]
     UnexpectFormatError,
     #[error("unexpected red size. got={0}, want={1}")]
@@ -16,8 +16,8 @@ enum ReadError {
     UnexpectedWireTypeValueError(u128),
 }
 
-// read_variants read base variants
-fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128> {
+// decode_variants decode base variants
+fn decode_variants(data: &mut Cursor<&[u8]>) -> Result<u128> {
     // iterate take_util とかでもできるよ
     let mut sum = 0;
     let mut loop_count = 0;
@@ -25,7 +25,7 @@ fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128> {
         let mut buf = [0; 1];
         let result = data.read_exact(&mut buf);
         if let Err(_) = result {
-            return Err(ReadError::UnexpectFormatError)?;
+            return Err(DecodeError::UnexpectFormatError)?;
         }
         // MSB は後続のバイトが続くかどうかの判定に使われる
         // 1 の場合、後続が続く
@@ -41,31 +41,32 @@ fn read_variants(data: &mut Cursor<&[u8]>) -> Result<u128> {
     }
 }
 
-// read_length_delimited read variable length byte.
-// length to read is first variants
+// decode_length_delimited decode variable length byte.
+// length to decode is first variants
 // this function used by `string`, `embedded messages`
-fn read_length_delimited(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>> {
-    let length = read_variants(data)? as usize;
+fn decode_length_delimited(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>> {
+    let length = decode_variants(data)? as usize;
     let mut buf = vec![0; length];
     data.read_exact(&mut buf)?;
     Ok(buf)
 }
-fn read_nbit<const SIZE: usize>(data: &mut Cursor<&[u8]>) -> Result<[u8; SIZE]> {
+
+fn decode_nbit<const SIZE: usize>(data: &mut Cursor<&[u8]>) -> Result<[u8; SIZE]> {
     let mut buf = [0; SIZE];
     data.read_exact(&mut buf)?;
     Ok(buf)
 }
 
-fn read_32bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 4]> {
-    read_nbit(data)
+fn decode_32bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 4]> {
+    decode_nbit(data)
 }
-fn read_64bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 8]> {
-    read_nbit(data)
+fn decode_64bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 8]> {
+    decode_nbit(data)
 }
 
-// read_repeat read repeated elements
-fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>> {
-    let payload_size = read_variants(data)?;
+// decode_repeat decode repeated elements
+fn decode_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>> {
+    let payload_size = decode_variants(data)?;
     let start = data.position();
 
     let mut v = Vec::new();
@@ -76,31 +77,31 @@ fn read_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>> {
             return Ok(v);
         }
         if payload_size < red_size {
-            return Err(ReadError::UnexpectRepeatSizeError(payload_size, red_size))?;
+            return Err(DecodeError::UnexpectRepeatSizeError(payload_size, red_size))?;
         }
-        let value = read_variants(data)?;
+        let value = decode_variants(data)?;
         v.push(value);
     }
 }
 
-// read_tag read wire's tag
-fn read_tag(data: &mut Cursor<&[u8]>) -> Result<(u128, u128)> {
-    let n = read_variants(data)?;
+// decode_tag decode wire's tag
+fn decode_tag(data: &mut Cursor<&[u8]>) -> Result<(u128, u128)> {
+    let n = decode_variants(data)?;
     let wt = n & 7;
     let field_number = n >> 3;
     Ok((field_number, wt))
 }
 
-fn read_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct> {
-    let (field_num, wire_type) = read_tag(data)?;
+fn decode_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct> {
+    let (field_num, wire_type) = decode_tag(data)?;
     let wt = match wire_type {
-        0 => Ok(WireType::Varint(read_variants(data)?)),
-        1 => Ok(WireType::Bit64(read_64bit(data)?)),
-        2 => Ok(WireType::LengthDelimited(read_length_delimited(data)?)),
+        0 => Ok(WireType::Varint(decode_variants(data)?)),
+        1 => Ok(WireType::Bit64(decode_64bit(data)?)),
+        2 => Ok(WireType::LengthDelimited(decode_length_delimited(data)?)),
         // 3=>WireType::StartGroup,
         // 4=>WireType::EndGroup,
-        5 => Ok(WireType::Bit32(read_32bit(data)?)),
-        _ => Err(ReadError::UnexpectedWireTypeValueError(wire_type)),
+        5 => Ok(WireType::Bit32(decode_32bit(data)?)),
+        _ => Err(DecodeError::UnexpectedWireTypeValueError(wire_type)),
     }?;
     Ok(WireStruct {
         field_number: field_num,
@@ -108,15 +109,15 @@ fn read_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct> {
     })
 }
 
-// read_wire_binary read wire format. return Vec included red filed.
-pub fn read_wire_binary(data: &mut Cursor<&[u8]>) -> Result<Vec<WireStruct>> {
+// decode_wire_binary decode wire format. return Vec included red filed.
+pub fn decode_wire_binary(data: &mut Cursor<&[u8]>) -> Result<Vec<WireStruct>> {
     let mut v = Vec::new();
     // ここは、`data.get_ref().len();` でもよい。
     let end = data.seek(SeekFrom::End(0))?;
     data.seek(SeekFrom::Start(0))?;
 
     while end > data.position() {
-        v.push(read_struct(data)?);
+        v.push(decode_struct(data)?);
     }
     Ok(v)
 }
@@ -170,12 +171,12 @@ mod tests {
     }
 
     #[test]
-    fn test_read_variants() {
+    fn test_decode_variants() {
         {
             let bytes: &[u8] = &[0b00000001];
             let mut c = Cursor::new(bytes);
             assert_eq!(c.position(), 0);
-            let x = super::read_variants(&mut c).unwrap();
+            let x = super::decode_variants(&mut c).unwrap();
             assert_eq!(x, 1);
             assert_eq!(c.position(), 1);
         }
@@ -183,20 +184,20 @@ mod tests {
             let bytes: &[u8] = &[0b10101100, 0b00000010];
             let mut c = Cursor::new(bytes);
             assert_eq!(c.position(), 0);
-            let x = super::read_variants(&mut c).unwrap();
+            let x = super::decode_variants(&mut c).unwrap();
             assert_eq!(x, 300);
             assert_eq!(c.position(), 2);
         }
     }
     #[test]
-    fn test_read_tag() {
+    fn test_decode_tag() {
         {
             let bytes: &[u8] = &[0b00001000];
             let mut c = Cursor::new(bytes);
 
             assert_eq!(c.position(), 0);
 
-            let got = read_tag(&mut c).unwrap();
+            let got = decode_tag(&mut c).unwrap();
 
             let expected = (1, 0);
             assert_eq!(got, expected);
@@ -207,7 +208,7 @@ mod tests {
             let mut c = Cursor::new(bytes);
 
             assert_eq!(c.position(), 0);
-            let got = read_tag(&mut c).unwrap();
+            let got = decode_tag(&mut c).unwrap();
 
             let expected = (3, 2);
             assert_eq!(got, expected);
@@ -218,7 +219,7 @@ mod tests {
             let mut c = Cursor::new(bytes);
 
             assert_eq!(c.position(), 0);
-            let got = read_tag(&mut c).unwrap();
+            let got = decode_tag(&mut c).unwrap();
 
             let expected = (1000, 0);
             assert_eq!(got, expected);
@@ -227,14 +228,14 @@ mod tests {
     }
 
     #[test]
-    fn test_read_length_delimited() {
+    fn test_decode_length_delimited() {
         {
             let bytes: &[u8] = &[0b00000010, 0b01111000, 0b01111000];
             let mut c = Cursor::new(bytes);
 
             assert_eq!(c.position(), 0);
 
-            let got = read_length_delimited(&mut c).unwrap();
+            let got = decode_length_delimited(&mut c).unwrap();
 
             let expected = vec![0b01111000, 0b01111000];
             assert_eq!(got, expected);
@@ -243,7 +244,7 @@ mod tests {
     }
 
     #[test]
-    fn test_read_repeat() {
+    fn test_decode_repeat() {
         {
             let bytes: &[u8] = &[
                 0b00000110, 0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100, 0b00000101,
@@ -252,7 +253,7 @@ mod tests {
 
             assert_eq!(c.position(), 0);
 
-            let got = read_repeat(&mut c).unwrap();
+            let got = decode_repeat(&mut c).unwrap();
 
             assert_eq!(got, vec![1, 2, 1000, 4, 5]);
             assert_eq!(c.position(), 7);
@@ -260,19 +261,19 @@ mod tests {
     }
 
     #[test]
-    fn test_read_32bit() {
+    fn test_decode_32bit() {
         let bytes: &[u8] = &[0b00000000, 0b00000000, 0b00000000, 0b01000000];
         let mut c = Cursor::new(bytes);
 
         assert_eq!(c.position(), 0);
 
-        let got = read_32bit(&mut c).unwrap();
+        let got = decode_32bit(&mut c).unwrap();
 
         assert_eq!(got, [0, 0, 0, 64]);
         assert_eq!(c.position(), 4);
     }
     #[test]
-    fn test_read_64bit() {
+    fn test_decode_64bit() {
         let bytes: &[u8] = &[
             0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b11110000,
             0b00111111,
@@ -281,21 +282,21 @@ mod tests {
 
         assert_eq!(c.position(), 0);
 
-        let got = read_64bit(&mut c).unwrap();
+        let got = decode_64bit(&mut c).unwrap();
 
         assert_eq!(got, [0, 0, 0, 0, 0, 0, 240, 63]);
         assert_eq!(c.position(), 8);
     }
 
     #[test]
-    fn test_read_struct() {
+    fn test_decode_struct() {
         {
             let bytes: &[u8] = &[0b01000101, 0b00000000, 0b00000000, 0b00000000, 0b01000000];
             let mut c = Cursor::new(bytes);
 
             assert_eq!(c.position(), 0);
 
-            let got = read_struct(&mut c).unwrap();
+            let got = decode_struct(&mut c).unwrap();
 
             let expected = WireStruct {
                 field_number: 8,
@@ -313,7 +314,7 @@ mod tests {
 
             assert_eq!(c.position(), 0);
 
-            let got = read_struct(&mut c).unwrap();
+            let got = decode_struct(&mut c).unwrap();
 
             let expected = WireStruct {
                 field_number: 1,
@@ -334,7 +335,7 @@ mod tests {
 
             assert_eq!(c.position(), 0);
 
-            let got = read_struct(&mut c).unwrap();
+            let got = decode_struct(&mut c).unwrap();
 
             let expected = WireStruct {
                 field_number: 4,
@@ -352,7 +353,7 @@ mod tests {
 
             assert_eq!(c.position(), 0);
 
-            let got = read_struct(&mut c).unwrap();
+            let got = decode_struct(&mut c).unwrap();
 
             let expected = WireStruct {
                 field_number: 1000,
@@ -364,14 +365,14 @@ mod tests {
     }
 
     #[test]
-    fn test_read_wire_binary() {
+    fn test_decode_wire_binary() {
         {
             let bytes: &[u8] = &[0b01000101, 0b00000000, 0b00000000, 0b00000000, 0b01000000];
             let mut c = Cursor::new(bytes);
 
             assert_eq!(c.position(), 0);
 
-            let got = read_wire_binary(&mut c).unwrap();
+            let got = decode_wire_binary(&mut c).unwrap();
 
             let expected = vec![WireStruct {
                 field_number: 8,
@@ -389,7 +390,7 @@ mod tests {
 
             assert_eq!(c.position(), 0);
 
-            let got = read_wire_binary(&mut c).unwrap();
+            let got = decode_wire_binary(&mut c).unwrap();
 
             let expected = vec![
                 WireStruct {
@@ -413,7 +414,7 @@ mod tests {
                 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b11110000,
             ];
             let mut c = Cursor::new(bytes);
-            assert!(read_wire_binary(&mut c).is_err());
+            assert!(decode_wire_binary(&mut c).is_err());
         }
     }
 
