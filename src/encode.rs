@@ -4,7 +4,7 @@ use std::{
     io::{Cursor, Write},
     u128,
 };
-fn decode_variants(data: &mut Cursor<Vec<u8>>, input: u128) -> Result<()> {
+fn encode_variants(data: &mut Cursor<Vec<u8>>, input: u128) -> Result<()> {
     // 事前にbufferを確保すること
     let mut buf: Vec<u8> = Vec::new();
     let mut input = input;
@@ -30,10 +30,10 @@ mod tests {
     use super::*;
     use std::io::Read;
     #[test]
-    fn test_decode_variants() {
+    fn test_encode_variants() {
         {
             let mut c = Cursor::new(Vec::new());
-            decode_variants(&mut c, 1).unwrap();
+            encode_variants(&mut c, 1).unwrap();
             assert_eq!(c.position(), 1);
 
             let x: Vec<u8> = c.into_inner();
@@ -41,7 +41,7 @@ mod tests {
         }
         {
             let mut c = Cursor::new(Vec::new());
-            decode_variants(&mut c, 300).unwrap();
+            encode_variants(&mut c, 300).unwrap();
             // assert_eq!(c.position(), 2);
 
             let x: Vec<u8> = c.into_inner();
@@ -49,7 +49,7 @@ mod tests {
         }
         {
             let mut c = Cursor::new(Vec::new());
-            decode_variants(&mut c, 12323412).unwrap();
+            encode_variants(&mut c, 12323412).unwrap();
             // assert_eq!(c.position(), 2);
 
             let x: Vec<u8> = c.into_inner();
@@ -70,7 +70,7 @@ mod tests {
         }
         {
             let mut c = Cursor::new(Vec::new());
-            decode_variants(&mut c, 12323412).unwrap();
+            encode_variants(&mut c, 12323412).unwrap();
 
             let x: Vec<u8> = c.into_inner();
             println!("{:?}", x)
