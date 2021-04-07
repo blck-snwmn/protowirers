@@ -9,6 +9,9 @@ fn encode_variants(data: &mut Cursor<Vec<u8>>, input: u128) -> Result<()> {
     let mut buf: Vec<u8> = Vec::new();
     let mut input = input;
     loop {
+        if input == 0 {
+            break;
+        }
         // 下位7bitずつ読みすすめる
         let mut x: u8 = TryFrom::try_from(input & 0b01111111)?;
         input = input >> 7;
@@ -17,9 +20,6 @@ fn encode_variants(data: &mut Cursor<Vec<u8>>, input: u128) -> Result<()> {
             x = x | 0b10000000;
         }
         buf.push(x);
-        if input == 0 {
-            break;
-        }
     }
     data.write_all(buf.as_slice())?;
     Ok(())
@@ -54,6 +54,14 @@ mod tests {
 
             let x: Vec<u8> = c.into_inner();
             assert_eq!(x, vec![0b11010100, 0b10010100, 0b11110000, 0b00000101]);
+        }
+        {
+            let mut c = Cursor::new(Vec::new());
+            encode_variants(&mut c, 0).unwrap();
+            // assert_eq!(c.position(), 2);
+
+            let x: Vec<u8> = c.into_inner();
+            assert_eq!(x, vec![]);
         }
     }
 
