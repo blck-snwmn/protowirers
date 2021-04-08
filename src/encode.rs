@@ -4,6 +4,7 @@ use std::{
     io::{Cursor, Write},
     u128,
 };
+
 fn encode_variants(data: &mut Cursor<Vec<u8>>, input: u128) -> Result<()> {
     // 事前にbufferを確保すること
     let mut buf: Vec<u8> = Vec::new();
@@ -22,6 +23,21 @@ fn encode_variants(data: &mut Cursor<Vec<u8>>, input: u128) -> Result<()> {
         buf.push(x);
     }
     data.write_all(buf.as_slice())?;
+    Ok(())
+}
+
+fn encode_length_delimited(data: &mut Cursor<Vec<u8>>, input: Vec<u8>) -> Result<()> {
+    encode_variants(data, input.len() as u128)?;
+    data.write_all(input.as_slice())?;
+    Ok(())
+}
+
+fn encode_32bit(data: &mut Cursor<Vec<u8>>, input: [u8; 4]) -> Result<()> {
+    data.write_all(&input)?;
+    Ok(())
+}
+fn encode_64bit(data: &mut Cursor<Vec<u8>>, input: [u8; 8]) -> Result<()> {
+    data.write_all(&input)?;
     Ok(())
 }
 
@@ -66,6 +82,48 @@ mod tests {
     }
 
     #[test]
+    fn test_encode_length_delimited() {
+        {
+            let mut c = Cursor::new(Vec::new());
+            assert_eq!(c.position(), 0);
+            encode_length_delimited(&mut c, vec![0b01111000, 0b01111000]).unwrap();
+            assert_eq!(c.position(), 3);
+            assert_eq!(c.into_inner(), vec![0b00000010, 0b01111000, 0b01111000]);
+        }
+    }
+
+    #[test]
+    fn test_encode_32bit() {
+        {
+            let mut c = Cursor::new(Vec::new());
+            assert_eq!(c.position(), 0);
+            encode_32bit(&mut c, [0, 0, 0, 64]).unwrap();
+            assert_eq!(c.position(), 4);
+            assert_eq!(
+                c.into_inner(),
+                vec![0b00000000, 0b00000000, 0b00000000, 0b01000000]
+            );
+        }
+    }
+
+    #[test]
+    fn test_encode_64bit() {
+        {
+            let mut c = Cursor::new(Vec::new());
+            assert_eq!(c.position(), 0);
+            encode_64bit(&mut c, [0, 0, 0, 0, 0, 0, 240, 63]).unwrap();
+            assert_eq!(c.position(), 3);
+            assert_eq!(
+                c.into_inner(),
+                vec![
+                    0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                    0b11110000, 0b00111111,
+                ]
+            );
+        }
+    }
+
+    #[test]
     fn check() {
         {
             let bytes: Vec<u8> = Vec::new();
@@ -87,6 +145,18 @@ mod tests {
             let p = |x: u128| println!("{:#030b}", x);
             println!("--------------");
             let mut x = 12323412;
+            p(x);
+            x = x >> 7;
+            p(x);
+            x = x >> 7;
+            p(x);
+            x = x >> 7;
+            p(x);
+        }
+        {
+            let p = |x: u128| println!("{:#018b}", x);
+            println!("--------------");
+            let mut x = 65535;
             p(x);
             x = x >> 7;
             p(x);
