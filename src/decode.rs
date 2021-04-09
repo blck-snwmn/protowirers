@@ -122,6 +122,7 @@ pub fn decode_wire_binary(data: &mut Cursor<&[u8]>) -> Result<Vec<WireStruct>> {
     Ok(v)
 }
 
+// TODO 別ファイルへ移動
 type FieldNumber = u128;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -136,6 +137,12 @@ impl WireStruct {
     }
     pub fn wire_type(&self) -> WireType {
         self.wire_type.clone()
+    }
+    pub fn new(field_number: FieldNumber, wire_type: WireType) -> Self {
+        WireStruct {
+            field_number,
+            wire_type,
+        }
     }
 }
 
