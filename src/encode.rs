@@ -68,10 +68,19 @@ fn encode_struct(data: &mut Cursor<Vec<u8>>, input: WireStruct) -> Result<()> {
     }
     Ok(())
 }
+
+// encode_wire_binary decode wire format. return Vec included red filed.
+pub fn encode_wire_binary(data: &mut Cursor<Vec<u8>>, inputs: Vec<WireStruct>) -> Result<()> {
+    for input in inputs {
+        encode_struct(data, input)?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::decode::*;
+    use crate::decode::WireType;
     use std::io::Read;
     #[test]
     fn test_encode_variants() {
@@ -235,6 +244,85 @@ mod tests {
             assert_eq!(
                 c.into_inner(),
                 vec![0b11000000, 0b00111110, 0b11100011, 0b01010001]
+            );
+        }
+    }
+
+    #[test]
+    fn test_encode_wire_binary() {
+        {
+            let mut c = Cursor::new(Vec::new());
+            let ws = WireStruct::new(1000, WireType::Varint(10467));
+            encode_wire_binary(&mut c, vec![ws]).unwrap();
+            assert_eq!(c.position(), 4);
+            assert_eq!(
+                c.into_inner(),
+                vec![0b11000000, 0b00111110, 0b11100011, 0b01010001]
+            );
+        }
+        {
+            let mut c = Cursor::new(Vec::new());
+            let wss = vec![WireStruct::new(
+                8,
+                WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+            )];
+            encode_wire_binary(&mut c, wss).unwrap();
+            assert_eq!(c.position(), 4);
+            assert_eq!(
+                c.into_inner(),
+                vec![0b01000101, 0b00000000, 0b00000000, 0b00000000, 0b01000000]
+            );
+        }
+        {
+            let mut c = Cursor::new(Vec::new());
+            let wss = vec![
+                WireStruct::new(
+                    8,
+                    WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+                ),
+                WireStruct::new(
+                    1,
+                    WireType::Bit64([
+                        0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                        0b11110000, 0b00111111,
+                    ]),
+                ),
+            ];
+            encode_wire_binary(&mut c, wss).unwrap();
+            assert_eq!(c.position(), 4);
+            assert_eq!(
+                c.into_inner(),
+                vec![
+                    0b01000101, 0b00000000, 0b00000000, 0b00000000, 0b01000000, 0b00001001,
+                    0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                    0b11110000, 0b00111111,
+                ]
+            );
+        }
+        {
+            let mut c = Cursor::new(Vec::new());
+            let wss = vec![
+                WireStruct::new(
+                    8,
+                    WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+                ),
+                WireStruct::new(
+                    1,
+                    WireType::Bit64([
+                        0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                        0b11110000, 0b00111111,
+                    ]),
+                ),
+            ];
+            encode_wire_binary(&mut c, wss).unwrap();
+            assert_eq!(c.position(), 4);
+            assert_eq!(
+                c.into_inner(),
+                vec![
+                    0b01000101, 0b00000000, 0b00000000, 0b00000000, 0b01000000, 0b00001001,
+                    0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                    0b11110000, 0b00111111,
+                ]
             );
         }
     }
