@@ -131,11 +131,11 @@ pub struct WireStruct {
 }
 
 impl WireStruct {
-    pub fn field_number(&self) -> &FieldNumber {
-        &self.field_number
+    pub fn field_number(&self) -> FieldNumber {
+        self.field_number
     }
-    pub fn wire_type(&self) -> &WireType {
-        &self.wire_type
+    pub fn wire_type(&self) -> WireType {
+        self.wire_type.clone()
     }
 }
 
@@ -147,6 +147,17 @@ pub enum WireType {
     // StartGroup,
     // EndGroup,
     Bit32([u8; 4]),
+}
+
+impl WireType {
+    pub fn type_number(&self) -> u128 {
+        match &self {
+            WireType::Varint(_) => 0,
+            WireType::Bit64(_) => 1,
+            WireType::LengthDelimited(_) => 2,
+            WireType::Bit32(_) => 5,
+        }
+    }
 }
 
 impl Display for WireType {

@@ -99,7 +99,7 @@ impl<'a> Field<'a> {
         let def_type = a.def_type.to_parse_function();
         quote! {
             (#fieild_num, decode::WireType::Varint(v)) => {
-                #filed_indent = Some(#def_type(*v)?);
+                #filed_indent = Some(#def_type(v)?);
             }
         }
     }

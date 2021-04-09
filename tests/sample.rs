@@ -18,10 +18,10 @@ impl Sample {
         for sw in result {
             match (sw.field_number(), sw.wire_type()) {
                 (1, decode::WireType::Varint(v)) => {
-                    s = parser::parse_u32(*v)?;
+                    s = parser::parse_u32(v)?;
                 }
                 (2, decode::WireType::Varint(v)) => {
-                    x = parser::parse_i64(*v)?;
+                    x = parser::parse_i64(v)?;
                 }
                 _ => (),
             }
