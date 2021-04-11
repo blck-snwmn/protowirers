@@ -1,6 +1,6 @@
 pub mod bytes;
 pub mod decode;
-mod encode;
+pub mod encode;
 pub mod parser;
 mod zigzag;
 
