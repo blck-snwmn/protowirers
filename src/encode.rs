@@ -34,11 +34,11 @@ fn encode_length_delimited(data: &mut Cursor<Vec<u8>>, input: Vec<u8>) -> Result
     Ok(())
 }
 
-fn encode_32bit(data: &mut Cursor<Vec<u8>>, input: [u8; 4]) -> Result<()> {
+pub fn encode_32bit(data: &mut Cursor<Vec<u8>>, input: [u8; 4]) -> Result<()> {
     data.write_all(&input)?;
     Ok(())
 }
-fn encode_64bit(data: &mut Cursor<Vec<u8>>, input: [u8; 8]) -> Result<()> {
+pub fn encode_64bit(data: &mut Cursor<Vec<u8>>, input: [u8; 8]) -> Result<()> {
     data.write_all(&input)?;
     Ok(())
 }
