@@ -1,8 +1,3 @@
-use std::{
-    mem::{size_of, size_of_val},
-    ops::{Shl, Shr},
-};
-
 pub(crate) fn encode32(n: i32) -> u32 {
     ((n << 1) ^ (n >> 31)) as u32
 }
@@ -66,17 +61,17 @@ mod tests {
 
     #[test]
     fn test_encode() {
-        assert_eq!(encode(0), 0 as u32);
-        assert_eq!(encode(-1), 1 as u32);
-        assert_eq!(encode(1), 2 as u32);
-        assert_eq!(encode(-2), 3 as u32);
-        assert_eq!(encode(2), 4 as u32);
-        assert_eq!(encode(2147483647), 4294967294 as u32);
-        assert_eq!(encode(-2147483648), 4294967295 as u32);
-        assert_eq!(encode(2147483647 as i32), 4294967294);
-        assert_eq!(encode(-2147483648 as i32), 4294967295);
-        assert_eq!(encode(-9223372036854775808 as i64), 18446744073709551615);
-        assert_eq!(encode(9223372036854775807 as i64), 18446744073709551614);
+        assert_eq!(encode(0), 0_u32);
+        assert_eq!(encode(-1), 1_u32);
+        assert_eq!(encode(1), 2_u32);
+        assert_eq!(encode(-2), 3_u32);
+        assert_eq!(encode(2), 4_u32);
+        assert_eq!(encode(2147483647), 4294967294_u32);
+        assert_eq!(encode(-2147483648), 4294967295_u32);
+        assert_eq!(encode(2147483647_i32), 4294967294);
+        assert_eq!(encode(-2147483648_i32), 4294967295);
+        assert_eq!(encode(-9223372036854775808_i64), 18446744073709551615);
+        assert_eq!(encode(9223372036854775807_i64), 18446744073709551614);
     }
     #[test]
     fn test_decode_zigzag() {
