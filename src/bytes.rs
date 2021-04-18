@@ -1,11 +1,7 @@
 use crate::{
     decode::{WireStruct, WireType},
-    encode,
     zigzag::{self, ZigZag},
 };
-use anyhow::Result;
-use std::convert::TryFrom;
-use std::io::Cursor;
 
 pub fn to_wire_struct<T: Into<u128>>(field_num: u128, data: T) -> WireStruct {
     let data: u128 = data.into();
