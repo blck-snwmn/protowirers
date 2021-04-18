@@ -5,7 +5,7 @@ use std::{
     u128,
 };
 
-use crate::{decode::WireStruct, zigzag::encode64};
+use crate::decode::WireStruct;
 
 fn encode_variants(data: &mut Cursor<Vec<u8>>, input: u128) -> Result<()> {
     // 事前にbufferを確保すること
@@ -267,7 +267,7 @@ mod tests {
                 WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
             )];
             encode_wire_binary(&mut c, wss).unwrap();
-            assert_eq!(c.position(), 4);
+            assert_eq!(c.position(), 5);
             assert_eq!(
                 c.into_inner(),
                 vec![0b01000101, 0b00000000, 0b00000000, 0b00000000, 0b01000000]
@@ -289,7 +289,7 @@ mod tests {
                 ),
             ];
             encode_wire_binary(&mut c, wss).unwrap();
-            assert_eq!(c.position(), 4);
+            assert_eq!(c.position(), 14);
             assert_eq!(
                 c.into_inner(),
                 vec![
@@ -315,7 +315,7 @@ mod tests {
                 ),
             ];
             encode_wire_binary(&mut c, wss).unwrap();
-            assert_eq!(c.position(), 4);
+            assert_eq!(c.position(), 14);
             assert_eq!(
                 c.into_inner(),
                 vec![

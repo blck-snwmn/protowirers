@@ -13,16 +13,6 @@ pub fn to_wire_struct<T: Into<u128>>(field_num: u128, data: T) -> WireStruct {
     WireStruct::new(field_num, t)
 }
 
-pub fn to_wire_struct_from_signed_32<T: Into<i32>>(field_num: u128, data: T) -> WireStruct {
-    let data = zigzag::encode32(data.into());
-    to_wire_struct(field_num, data)
-}
-
-pub fn to_wire_struct_from_signed_64<T: Into<i64>>(field_num: u128, data: T) -> WireStruct {
-    let data = zigzag::encode64(data.into());
-    to_wire_struct(field_num, data)
-}
-
 pub fn to_wire_struct_from_signed<T, U>(field_num: u128, data: T) -> WireStruct
 where
     T: ZigZag<Output = U>,
