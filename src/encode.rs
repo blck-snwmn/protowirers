@@ -34,11 +34,10 @@ fn encode_length_delimited(data: &mut Cursor<Vec<u8>>, input: Vec<u8>) -> Result
     Ok(())
 }
 
-pub fn encode_32bit(data: &mut Cursor<Vec<u8>>, input: [u8; 4]) -> Result<()> {
-    data.write_all(&input)?;
-    Ok(())
-}
-pub fn encode_64bit(data: &mut Cursor<Vec<u8>>, input: [u8; 8]) -> Result<()> {
+pub fn encode<const BYTE_SIZE: usize>(
+    data: &mut Cursor<Vec<u8>>,
+    input: [u8; BYTE_SIZE],
+) -> Result<()> {
     data.write_all(&input)?;
     Ok(())
 }
@@ -57,13 +56,13 @@ fn encode_struct(data: &mut Cursor<Vec<u8>>, input: WireStruct) -> Result<()> {
             encode_variants(data, v)?;
         }
         crate::decode::WireType::Bit64(b) => {
-            encode_64bit(data, b)?;
+            encode(data, b)?;
         }
         crate::decode::WireType::LengthDelimited(l) => {
             encode_length_delimited(data, l)?;
         }
         crate::decode::WireType::Bit32(b) => {
-            encode_32bit(data, b)?;
+            encode(data, b)?;
         }
     }
     Ok(())
@@ -130,25 +129,21 @@ mod tests {
     }
 
     #[test]
-    fn test_encode_32bit() {
+    fn test_encode() {
         {
             let mut c = Cursor::new(Vec::new());
             assert_eq!(c.position(), 0);
-            encode_32bit(&mut c, [0, 0, 0, 64]).unwrap();
+            encode(&mut c, [0, 0, 0, 64]).unwrap();
             assert_eq!(c.position(), 4);
             assert_eq!(
                 c.into_inner(),
                 vec![0b00000000, 0b00000000, 0b00000000, 0b01000000]
             );
         }
-    }
-
-    #[test]
-    fn test_encode_64bit() {
         {
             let mut c = Cursor::new(Vec::new());
             assert_eq!(c.position(), 0);
-            encode_64bit(&mut c, [0, 0, 0, 0, 0, 0, 240, 63]).unwrap();
+            encode(&mut c, [0, 0, 0, 0, 0, 0, 240, 63]).unwrap();
             assert_eq!(c.position(), 8);
             assert_eq!(
                 c.into_inner(),
