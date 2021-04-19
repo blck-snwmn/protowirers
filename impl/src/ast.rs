@@ -98,7 +98,7 @@ impl<'a> Field<'a> {
         let fieild_num = a.filed_num as u128;
         let def_type = a.def_type.to_parse_function();
         quote! {
-            (#fieild_num, decode::WireType::Varint(v)) => {
+            (#fieild_num, wire::WireType::Varint(v)) => {
                 #filed_indent = Some(#def_type(v)?);
             }
         }

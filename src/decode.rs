@@ -1,8 +1,9 @@
 use std::{
-    fmt::Display,
     io::{Cursor, Read, Seek, SeekFrom},
     u128,
 };
+
+use crate::wire::*;
 
 use anyhow::Result;
 use thiserror::Error;
@@ -103,10 +104,7 @@ fn decode_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct> {
         5 => Ok(WireType::Bit32(decode_32bit(data)?)),
         _ => Err(DecodeError::UnexpectedWireTypeValueError(wire_type)),
     }?;
-    Ok(WireStruct {
-        field_number: field_num,
-        wire_type: wt,
-    })
+    Ok(WireStruct::new(field_num, wt))
 }
 
 // decode_wire_binary decode wire format. return Vec included red filed.
@@ -120,62 +118,6 @@ pub fn decode_wire_binary(data: &mut Cursor<&[u8]>) -> Result<Vec<WireStruct>> {
         v.push(decode_struct(data)?);
     }
     Ok(v)
-}
-
-// TODO 別ファイルへ移動
-type FieldNumber = u128;
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct WireStruct {
-    field_number: FieldNumber,
-    wire_type: WireType,
-}
-
-impl WireStruct {
-    pub fn field_number(&self) -> FieldNumber {
-        self.field_number
-    }
-    pub fn wire_type(&self) -> WireType {
-        self.wire_type.clone()
-    }
-    pub fn new(field_number: FieldNumber, wire_type: WireType) -> Self {
-        WireStruct {
-            field_number,
-            wire_type,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum WireType {
-    Varint(u128),
-    Bit64([u8; 8]),
-    LengthDelimited(Vec<u8>),
-    // StartGroup,
-    // EndGroup,
-    Bit32([u8; 4]),
-}
-
-impl WireType {
-    pub fn type_number(&self) -> u128 {
-        match &self {
-            WireType::Varint(_) => 0,
-            WireType::Bit64(_) => 1,
-            WireType::LengthDelimited(_) => 2,
-            WireType::Bit32(_) => 5,
-        }
-    }
-}
-
-impl Display for WireType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self {
-            WireType::Varint(v) => write!(f, "Varint{}", v),
-            WireType::Bit64(v) => write!(f, "Bit64{:?}", v),
-            WireType::LengthDelimited(v) => write!(f, "LengthDelimited{:?}", v),
-            WireType::Bit32(v) => write!(f, "Bit32{:?}", v),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -316,10 +258,10 @@ mod tests {
 
             let got = decode_struct(&mut c).unwrap();
 
-            let expected = WireStruct {
-                field_number: 8,
-                wire_type: WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
-            };
+            let expected = WireStruct::new(
+                8,
+                WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+            );
             assert_eq!(got, expected);
             assert_eq!(c.position(), 5);
         }
@@ -334,13 +276,13 @@ mod tests {
 
             let got = decode_struct(&mut c).unwrap();
 
-            let expected = WireStruct {
-                field_number: 1,
-                wire_type: WireType::Bit64([
+            let expected = WireStruct::new(
+                1,
+                WireType::Bit64([
                     0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
                     0b11110000, 0b00111111,
                 ]),
-            };
+            );
             assert_eq!(got, expected);
             assert_eq!(c.position(), 9);
         }
@@ -355,13 +297,13 @@ mod tests {
 
             let got = decode_struct(&mut c).unwrap();
 
-            let expected = WireStruct {
-                field_number: 4,
-                wire_type: WireType::LengthDelimited(vec![
+            let expected = WireStruct::new(
+                4,
+                WireType::LengthDelimited(vec![
                     0b01111000, 0b11100011, 0b10000001, 0b10000010, 0b01111000, 0b11100011,
                     0b10000001, 0b10000010, 0b01111000, 0b11100011, 0b10000001, 0b10000010,
                 ]),
-            };
+            );
             assert_eq!(got, expected);
             assert_eq!(c.position(), 14);
         }
@@ -373,10 +315,7 @@ mod tests {
 
             let got = decode_struct(&mut c).unwrap();
 
-            let expected = WireStruct {
-                field_number: 1000,
-                wire_type: WireType::Varint(10467),
-            };
+            let expected = WireStruct::new(1000, WireType::Varint(10467));
             assert_eq!(got, expected);
             assert_eq!(c.position(), 4);
         }
@@ -392,10 +331,10 @@ mod tests {
 
             let got = decode_wire_binary(&mut c).unwrap();
 
-            let expected = vec![WireStruct {
-                field_number: 8,
-                wire_type: WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
-            }];
+            let expected = vec![WireStruct::new(
+                8,
+                WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+            )];
             assert_eq!(got, expected);
             assert_eq!(c.position(), 5);
         }
@@ -411,17 +350,17 @@ mod tests {
             let got = decode_wire_binary(&mut c).unwrap();
 
             let expected = vec![
-                WireStruct {
-                    field_number: 8,
-                    wire_type: WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
-                },
-                WireStruct {
-                    field_number: 1,
-                    wire_type: WireType::Bit64([
+                WireStruct::new(
+                    8,
+                    WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+                ),
+                WireStruct::new(
+                    1,
+                    WireType::Bit64([
                         0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
                         0b11110000, 0b00111111,
                     ]),
-                },
+                ),
             ];
             assert_eq!(got, expected);
             assert_eq!(c.position(), 14);

@@ -5,7 +5,7 @@ use std::{
     u128,
 };
 
-use crate::decode::WireStruct;
+use crate::wire::WireStruct;
 
 fn encode_variants(data: &mut Cursor<Vec<u8>>, input: u128) -> Result<()> {
     // 事前にbufferを確保すること
@@ -52,16 +52,16 @@ fn encode_tag(data: &mut Cursor<Vec<u8>>, field_number: u128, field_type: u128) 
 fn encode_struct(data: &mut Cursor<Vec<u8>>, input: WireStruct) -> Result<()> {
     encode_tag(data, input.field_number(), input.wire_type().type_number())?;
     match input.wire_type() {
-        crate::decode::WireType::Varint(v) => {
+        crate::wire::WireType::Varint(v) => {
             encode_variants(data, v)?;
         }
-        crate::decode::WireType::Bit64(b) => {
+        crate::wire::WireType::Bit64(b) => {
             encode(data, b)?;
         }
-        crate::decode::WireType::LengthDelimited(l) => {
+        crate::wire::WireType::LengthDelimited(l) => {
             encode_length_delimited(data, l)?;
         }
-        crate::decode::WireType::Bit32(b) => {
+        crate::wire::WireType::Bit32(b) => {
             encode(data, b)?;
         }
     }
@@ -79,7 +79,7 @@ pub fn encode_wire_binary(data: &mut Cursor<Vec<u8>>, inputs: Vec<WireStruct>) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::decode::WireType;
+    use crate::wire::WireType;
     use std::io::Read;
     #[test]
     fn test_encode_variants() {

@@ -1,5 +1,5 @@
 use crate::{
-    decode::{WireStruct, WireType},
+    wire::{WireStruct, WireType},
     zigzag::{self, ZigZag},
 };
 
