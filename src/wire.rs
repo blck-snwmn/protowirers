@@ -44,6 +44,10 @@ impl WireStruct {
     pub fn from_u64(field_number: FieldNumber, data: u64) -> Self {
         Self::new(field_number, WireType::Varint(data as u128))
     }
+    pub fn from_string(field_number: FieldNumber, data: String) -> Self {
+        let data = Vec::from(data);
+        Self::new(field_number, WireType::LengthDelimited(data))
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

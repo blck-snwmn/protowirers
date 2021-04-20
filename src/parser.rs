@@ -25,6 +25,11 @@ pub fn parse_i64(v: u128) -> Result<i64> {
     Ok(u)
 }
 
+pub fn parse_string(v: Vec<u8>) -> Result<String> {
+    let s = String::from_utf8(v)?;
+    Ok(s)
+}
+
 #[cfg(test)]
 mod tests {
     use std::u128;

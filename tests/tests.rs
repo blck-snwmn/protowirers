@@ -42,3 +42,34 @@ fn test_mapping_change_order_field_num() {
     let x = x.bytes().unwrap();
     assert_eq!(x, vec![0b00010000, 0b00000010, 0b00001000, 0b00010011]);
 }
+
+#[test]
+fn test_repeated_field() {
+    #[derive(Proto)]
+    struct Sample {
+        #[def(field_num = 4, def_type = "string")]
+        str_field: String,
+        // #[def(field_num = 1, def_type = "packed repeated fields")]
+        // vec_field: Vec<i64>,
+    }
+    let bytes: &[u8] = &[
+        0b00011010, 0b00010111, 0b00000001, 0b00000001, 0b00000001, 0b00000001, 0b00000001,
+        0b00000001, 0b00000001, 0b00000001, 0b00000001, 0b00000001, 0b00000001, 0b00000001,
+        0b00000001, 0b00000001, 0b00000001, 0b00000001, 0b00000001, 0b00000001, 0b00000001,
+        0b00000001, 0b00000001, 0b00000001, 0b00000001, 0b00100010, 0b00000011, 0b01100001,
+        0b01100010, 0b01100011,
+    ];
+    let x = Sample::parse(bytes).unwrap();
+    println!("\nshow");
+    println!("{}", x.str_field);
+    println!("{:?}", x.str_field);
+    assert_eq!(x.str_field, "abc");
+    let x = x.bytes().unwrap();
+    println!("{:?}", x);
+    println!("show\n");
+    x.iter().for_each(|xx| println!("{:#010b}", xx))
+
+    // assert_eq!(x.score, -10);
+    // let x = x.bytes().unwrap();
+    // assert_eq!(x, vec![0b00010000, 0b00000010, 0b00001000, 0b00010011]);
+}
