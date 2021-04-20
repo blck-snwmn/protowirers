@@ -32,29 +32,50 @@ pub trait ZigZag: Sized {
     fn decode(n: Self::Output) -> Self;
 }
 
-impl ZigZag for i32 {
-    type Output = u32;
-    fn encode(&self) -> Self::Output {
-        ((self << 1) ^ (self >> 31)) as u32
-    }
-    fn decode(n: Self::Output) -> Self {
-        let r = (n >> 1) as Self;
-        let l = (n & 1) as Self;
-        r ^ -l
-    }
+macro_rules! zigzag_impl {
+    ($T:ty, $OUT:ty, $SIFT:literal) => {
+        impl ZigZag for $T {
+            type Output = $OUT;
+            fn encode(&self) -> Self::Output {
+                ((self << 1) ^ (self >> $SIFT)) as Self::Output
+            }
+            fn decode(n: Self::Output) -> Self {
+                let r = (n >> 1) as Self;
+                let l = (n & 1) as Self;
+                r ^ -l
+            }
+        }
+    };
 }
 
-impl ZigZag for i64 {
-    type Output = u64;
-    fn encode(&self) -> Self::Output {
-        ((self << 1) ^ (self >> 63)) as u64
-    }
-    fn decode(n: Self::Output) -> Self {
-        let r = (n >> 1) as Self;
-        let l = (n & 1) as Self;
-        r ^ -l
-    }
-}
+// TODO BITS定数が来たら、SHIFTは置き換える
+zigzag_impl!(i32, u32, 31);
+zigzag_impl!(i64, u64, 63);
+
+// macro で実装されるのは以下。（参考までに残しておく）
+// impl ZigZag for i32 {
+//     type Output = u32;
+//     fn encode(&self) -> Self::Output {
+//         ((self << 1) ^ (self >> 31)) as u32
+//     }
+//     fn decode(n: Self::Output) -> Self {
+//         let r = (n >> 1) as Self;
+//         let l = (n & 1) as Self;
+//         r ^ -l
+//     }
+// }
+
+// impl ZigZag for i64 {
+//     type Output = u64;
+//     fn encode(&self) -> Self::Output {
+//         ((self << 1) ^ (self >> 63)) as u64
+//     }
+//     fn decode(n: Self::Output) -> Self {
+//         let r = (n >> 1) as Self;
+//         let l = (n & 1) as Self;
+//         r ^ -l
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
