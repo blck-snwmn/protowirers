@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::zigzag::ZigZag;
+
 // TODO 別ファイルへ移動
 pub type FieldNumber = u128;
 
@@ -21,6 +23,26 @@ impl WireStruct {
             field_number,
             wire_type,
         }
+    }
+    fn from_in<T, U>(field_number: FieldNumber, data: T) -> Self
+    where
+        T: ZigZag<Output = U>,
+        U: Into<u128>,
+    {
+        let data: u128 = data.encode().into();
+        Self::new(field_number, WireType::Varint(data))
+    }
+    pub fn from_i32(field_number: FieldNumber, data: i32) -> Self {
+        Self::from_in(field_number, data)
+    }
+    pub fn from_i64(field_number: FieldNumber, data: i64) -> Self {
+        Self::from_in(field_number, data)
+    }
+    pub fn from_u32(field_number: FieldNumber, data: u32) -> Self {
+        Self::new(field_number, WireType::Varint(data as u128))
+    }
+    pub fn from_u64(field_number: FieldNumber, data: u64) -> Self {
+        Self::new(field_number, WireType::Varint(data as u128))
     }
 }
 

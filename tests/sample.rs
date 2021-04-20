@@ -2,11 +2,11 @@
 struct Sample {
     // #[proto_def(field_num=1, p_type=int32)]
     s: u32,
-    // #[proto_def(field_num=2, p_type=int32)]
+    // #[proto_def(field_num=2, p_type=sint64)]
     x: i64,
 }
 use anyhow::Result;
-use protowirers::{bytes, decode, encode, parser, wire};
+use protowirers::{decode, encode, parser, wire};
 use std::io::Cursor;
 impl Sample {
     pub fn parse(bytes: &[u8]) -> Result<Self> {
@@ -33,8 +33,8 @@ impl Sample {
 
     pub fn bytes(&self) -> Result<Vec<u8>> {
         let inputs = vec![
-            bytes::to_wire_struct(1, self.s),
-            bytes::to_wire_struct_from_signed(2, self.x),
+            wire::WireStruct::from_u32(1, self.s),
+            wire::WireStruct::from_i64(2, self.x),
         ];
         let mut c = Cursor::new(Vec::new());
         encode::encode_wire_binary(&mut c, inputs)?;

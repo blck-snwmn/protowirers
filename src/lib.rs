@@ -1,4 +1,3 @@
-pub mod bytes;
 pub mod decode;
 pub mod encode;
 pub mod parser;
