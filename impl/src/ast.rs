@@ -57,6 +57,13 @@ impl<'a> Struct<'a> {
             #(#build_parse_fields,)*
         }
     }
+
+    pub fn build_gen_wirestructs(&self) -> proc_macro2::TokenStream {
+        let build_gen_wirestructs = self.fields.iter().map(|f| f.build_gen_wirestructs());
+        quote! {
+            #(#build_gen_wirestructs,)*
+        }
+    }
 }
 
 pub struct Field<'a> {
@@ -101,6 +108,16 @@ impl<'a> Field<'a> {
             (#fieild_num, wire::WireType::Varint(v)) => {
                 #filed_indent = Some(#def_type(v)?);
             }
+        }
+    }
+
+    fn build_gen_wirestructs(&self) -> proc_macro2::TokenStream {
+        let filed_indent = &self.original.ident;
+        let a = &self.attr;
+        let fieild_num = a.filed_num as u128;
+        let gen_fn = a.def_type.to_gen_function();
+        quote! {
+            #gen_fn(#fieild_num, self.#filed_indent)
         }
     }
 }
@@ -233,6 +250,12 @@ impl DefType {
         match &self {
             DefType::Int32 => quote! {parser::parse_u32},
             DefType::Sint64 => quote! {parser::parse_i64},
+        }
+    }
+    fn to_gen_function(&self) -> proc_macro2::TokenStream {
+        match &self {
+            DefType::Int32 => quote! {wire::WireStruct::from_u32},
+            DefType::Sint64 => quote! {wire::WireStruct::from_i64},
         }
     }
 }

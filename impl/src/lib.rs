@@ -24,6 +24,7 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let init_fields = data.build_declare_for_init();
     let build_fields = data.build_struct_fields();
     let build_parse_fields = data.build_match_case();
+    let build_gen_wirestructs = data.build_gen_wirestructs();
 
     Ok(quote! {
         use std::io::Cursor;
@@ -46,8 +47,13 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
                     #build_fields
                 })
             }
-            pub fn bytes(&self)-> Vec<u8>{
-                Vec::new()
+            pub fn bytes(&self)-> Result<Vec<u8>>{
+                let inputs = vec![
+                    #build_gen_wirestructs
+                ];
+                let mut c = Cursor::new(Vec::new());
+                encode::encode_wire_binary(&mut c, inputs)?;
+                Ok(c.into_inner())
             }
         }
     })
