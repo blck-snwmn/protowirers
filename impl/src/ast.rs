@@ -76,6 +76,36 @@ impl<'a> Field<'a> {
     }
     fn from_syn(f: &'a syn::Field) -> syn::Result<Self> {
         let attr = Attribute::from_syn(&f.attrs, f)?;
+        let ty = &f.ty;
+        // match ty {
+        //     syn::Type::Array(_) => Err(syn::Error::new_spanned(&ty, "Array"))?,
+        //     syn::Type::BareFn(_) => Err(syn::Error::new_spanned(&ty, "BareFn"))?,
+        //     syn::Type::Group(_) => Err(syn::Error::new_spanned(&ty, "Group"))?,
+        //     syn::Type::ImplTrait(_) => Err(syn::Error::new_spanned(&ty, "ImplTrait"))?,
+        //     syn::Type::Infer(_) => Err(syn::Error::new_spanned(&ty, "Infer"))?,
+        //     syn::Type::Macro(_) => Err(syn::Error::new_spanned(&ty, "Macro"))?,
+        //     syn::Type::Never(_) => Err(syn::Error::new_spanned(&ty, "Never"))?,
+        //     syn::Type::Paren(_) => Err(syn::Error::new_spanned(&ty, "Paren"))?,
+        //     syn::Type::Path(_) => Err(syn::Error::new_spanned(&ty, "Path"))?,
+        //     syn::Type::Ptr(_) => Err(syn::Error::new_spanned(&ty, "Ptr"))?,
+        //     syn::Type::Reference(_) => Err(syn::Error::new_spanned(&ty, "Reference"))?,
+        //     syn::Type::Slice(_) => Err(syn::Error::new_spanned(&ty, "Slice"))?,
+        //     syn::Type::TraitObject(_) => Err(syn::Error::new_spanned(&ty, "TraitObject"))?,
+        //     syn::Type::Tuple(_) => Err(syn::Error::new_spanned(&ty, "Tuple"))?,
+        //     syn::Type::Verbatim(_) => Err(syn::Error::new_spanned(&ty, "Verbatim"))?,
+        //     syn::Type::__TestExhaustive(_) => {
+        //         Err(syn::Error::new_spanned(&ty, "__TestExhaustive"))?
+        //     }
+        // }
+        if !attr.def_type.allows_rust_type(ty) {
+            Err(syn::Error::new_spanned(
+                &ty,
+                format!(
+                    "defined def_type `{:?}` does not match this Rust type",
+                    attr.def_type
+                ),
+            ))?
+        }
         Ok(Self {
             original: f,
             attr: attr,
@@ -83,7 +113,6 @@ impl<'a> Field<'a> {
     }
     fn build_struct_fields(&self) -> proc_macro2::TokenStream {
         let filed_indent = &self.original.ident;
-
         // すべてOptionalとして扱い、値が設定されていないフィールドはdefault値にする
         quote! {
             #filed_indent: #filed_indent.unwrap_or_default()
@@ -244,6 +273,13 @@ impl DefType {
             "int32" => Some(DefType::Int32),
             "sint64" => Some(DefType::Sint64),
             _ => None,
+        }
+    }
+    fn allows_rust_type(&self, ty: &syn::Type) -> bool {
+        match (&self, ty) {
+            (DefType::Int32, &syn::Type::Path(ref p)) if p.path.is_ident("u32") => true,
+            (DefType::Sint64, &syn::Type::Path(ref p)) if p.path.is_ident("i64") => true,
+            _ => false,
         }
     }
     fn to_parse_function(&self) -> proc_macro2::TokenStream {
