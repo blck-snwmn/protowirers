@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::zigzag::ZigZag;
 
-// TODO 別ファイルへ移動
+// alias　ではなく、タプル構造体にしたほうがよさそう
 pub type FieldNumber = u128;
 
 #[derive(Debug, PartialEq, Eq)]
