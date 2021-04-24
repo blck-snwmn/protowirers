@@ -96,7 +96,9 @@ fn decode_tag(data: &mut Cursor<&[u8]>) -> Result<(u128, u128)> {
 fn decode_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct> {
     let (field_num, wire_type) = decode_tag(data)?;
     let wt = match wire_type {
-        0 => Ok(WireType::Varint(decode_variants(data)?)),
+        0 => Ok(WireType::Varint(WireTypeVarint::new(decode_variants(
+            data,
+        )?))),
         1 => Ok(WireType::Bit64(decode_64bit(data)?)),
         2 => Ok(WireType::LengthDelimited(decode_length_delimited(data)?)),
         // 3=>WireType::StartGroup,
@@ -315,7 +317,7 @@ mod tests {
 
             let got = decode_struct(&mut c).unwrap();
 
-            let expected = WireStruct::new(1000, WireType::Varint(10467));
+            let expected = WireStruct::new(1000, WireType::Varint(WireTypeVarint::new(10467)));
             assert_eq!(got, expected);
             assert_eq!(c.position(), 4);
         }

@@ -1,6 +1,13 @@
+use crate::zigzag::ZigZag;
+use anyhow::Result;
 use std::fmt::Display;
 
-use crate::zigzag::ZigZag;
+pub trait Proto {
+    fn parse(bytes: &[u8]) -> Result<Self>
+    where
+        Self: Sized;
+    fn bytes(&self) -> Result<Vec<u8>>;
+}
 
 // alias　ではなく、タプル構造体にしたほうがよさそう
 pub type FieldNumber = u128;
@@ -30,7 +37,7 @@ impl WireStruct {
         U: Into<u128>,
     {
         let data: u128 = data.encode().into();
-        Self::new(field_number, WireType::Varint(data))
+        Self::new(field_number, WireType::Varint(WireTypeVarint::new(data)))
     }
     pub fn from_i32(field_number: FieldNumber, data: i32) -> Self {
         Self::from_in(field_number, data)
@@ -39,12 +46,22 @@ impl WireStruct {
         Self::from_in(field_number, data)
     }
     pub fn from_u32(field_number: FieldNumber, data: u32) -> Self {
-        Self::new(field_number, WireType::Varint(data as u128))
+        Self::new(
+            field_number,
+            WireType::Varint(WireTypeVarint::new(data as u128)),
+        )
     }
     pub fn from_u64(field_number: FieldNumber, data: u64) -> Self {
-        Self::new(field_number, WireType::Varint(data as u128))
+        Self::new(
+            field_number,
+            WireType::Varint(WireTypeVarint::new(data as u128)),
+        )
     }
     pub fn from_string(field_number: FieldNumber, data: String) -> Self {
+        let data = Vec::from(data);
+        Self::new(field_number, WireType::LengthDelimited(data))
+    }
+    pub fn from_vec(field_number: FieldNumber, data: String) -> Self {
         let data = Vec::from(data);
         Self::new(field_number, WireType::LengthDelimited(data))
     }
@@ -52,7 +69,7 @@ impl WireStruct {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum WireType {
-    Varint(u128),
+    Varint(WireTypeVarint),
     Bit64([u8; 8]),
     LengthDelimited(Vec<u8>),
     // StartGroup,
@@ -80,4 +97,37 @@ impl Display for WireType {
             WireType::Bit32(v) => write!(f, "Bit32{:?}", v),
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WireTypeVarint {
+    pub value: u128,
+}
+
+impl WireTypeVarint {
+    pub fn new(v: u128) -> Self {
+        WireTypeVarint { value: v }
+    }
+}
+
+impl Display for WireTypeVarint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Varint{}", self.value)
+    }
+}
+pub enum TypeBit64 {
+    Fixed64(u64), // 要確認
+    Sfixed64(i64),
+    Double(f64),
+}
+pub enum TypeLengthDelimited {
+    WireString(String),
+    Bytes,
+    EmbeddedMessages(Box<dyn Proto>),
+    PackedRepeatedFields,
+}
+pub enum TypeBit32 {
+    Fixed32(u32),
+    Sfixed32(i32),
+    Float(f32),
 }

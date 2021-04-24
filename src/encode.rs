@@ -53,7 +53,7 @@ fn encode_struct(data: &mut Cursor<Vec<u8>>, input: WireStruct) -> Result<()> {
     encode_tag(data, input.field_number(), input.wire_type().type_number())?;
     match input.wire_type() {
         crate::wire::WireType::Varint(v) => {
-            encode_variants(data, v)?;
+            encode_variants(data, v.value)?;
         }
         crate::wire::WireType::Bit64(b) => {
             encode(data, b)?;
@@ -79,7 +79,7 @@ pub fn encode_wire_binary(data: &mut Cursor<Vec<u8>>, inputs: Vec<WireStruct>) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::wire::WireType;
+    use crate::wire::{WireType, WireTypeVarint};
     use std::io::Read;
     #[test]
     fn test_encode_variants() {
@@ -233,7 +233,7 @@ mod tests {
         }
         {
             let mut c = Cursor::new(Vec::new());
-            let ws = WireStruct::new(1000, WireType::Varint(10467));
+            let ws = WireStruct::new(1000, WireType::Varint(WireTypeVarint::new(10467)));
             encode_struct(&mut c, ws).unwrap();
             assert_eq!(c.position(), 4);
             assert_eq!(
@@ -247,7 +247,7 @@ mod tests {
     fn test_encode_wire_binary() {
         {
             let mut c = Cursor::new(Vec::new());
-            let ws = WireStruct::new(1000, WireType::Varint(10467));
+            let ws = WireStruct::new(1000, WireType::Varint(WireTypeVarint::new(10467)));
             encode_wire_binary(&mut c, vec![ws]).unwrap();
             assert_eq!(c.position(), 4);
             assert_eq!(
