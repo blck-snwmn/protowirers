@@ -59,11 +59,17 @@ impl WireStruct {
     }
     pub fn from_string(field_number: FieldNumber, data: String) -> Self {
         let data = Vec::from(data);
-        Self::new(field_number, WireType::LengthDelimited(data))
+        Self::new(
+            field_number,
+            WireType::LengthDelimited(WireTypeLengthDelimited::new(data)),
+        )
     }
     pub fn from_vec(field_number: FieldNumber, data: String) -> Self {
         let data = Vec::from(data);
-        Self::new(field_number, WireType::LengthDelimited(data))
+        Self::new(
+            field_number,
+            WireType::LengthDelimited(WireTypeLengthDelimited::new(data)),
+        )
     }
 }
 
@@ -71,7 +77,7 @@ impl WireStruct {
 pub enum WireType {
     Varint(WireTypeVarint),
     Bit64([u8; 8]),
-    LengthDelimited(Vec<u8>),
+    LengthDelimited(WireTypeLengthDelimited),
     // StartGroup,
     // EndGroup,
     Bit32([u8; 4]),
@@ -115,6 +121,18 @@ impl Display for WireTypeVarint {
         write!(f, "Varint{}", self.value)
     }
 }
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WireTypeLengthDelimited {
+    pub value: Vec<u8>,
+}
+
+impl WireTypeLengthDelimited {
+    pub fn new(v: Vec<u8>) -> Self {
+        WireTypeLengthDelimited { value: v }
+    }
+}
+
 pub enum TypeBit64 {
     Fixed64(u64), // 要確認
     Sfixed64(i64),

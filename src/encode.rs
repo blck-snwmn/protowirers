@@ -59,7 +59,7 @@ fn encode_struct(data: &mut Cursor<Vec<u8>>, input: WireStruct) -> Result<()> {
             encode(data, b)?;
         }
         crate::wire::WireType::LengthDelimited(l) => {
-            encode_length_delimited(data, l)?;
+            encode_length_delimited(data, l.value)?;
         }
         crate::wire::WireType::Bit32(b) => {
             encode(data, b)?;
@@ -79,7 +79,7 @@ pub fn encode_wire_binary(data: &mut Cursor<Vec<u8>>, inputs: Vec<WireStruct>) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::wire::{WireType, WireTypeVarint};
+    use crate::wire::{WireType, WireTypeLengthDelimited, WireTypeVarint};
     use std::io::Read;
     #[test]
     fn test_encode_variants() {
@@ -215,10 +215,10 @@ mod tests {
             let mut c = Cursor::new(Vec::new());
             let ws = WireStruct::new(
                 4,
-                WireType::LengthDelimited(vec![
+                WireType::LengthDelimited(WireTypeLengthDelimited::new(vec![
                     0b01111000, 0b11100011, 0b10000001, 0b10000010, 0b01111000, 0b11100011,
                     0b10000001, 0b10000010, 0b01111000, 0b11100011, 0b10000001, 0b10000010,
-                ]),
+                ])),
             );
             encode_struct(&mut c, ws).unwrap();
             assert_eq!(c.position(), 14);

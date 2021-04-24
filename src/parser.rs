@@ -1,4 +1,4 @@
-use crate::wire::WireTypeVarint;
+use crate::wire::{WireTypeLengthDelimited, WireTypeVarint};
 use crate::zigzag;
 use anyhow::Result;
 use std::convert::TryFrom;
@@ -82,12 +82,13 @@ pub fn parse_i64(v: WireTypeVarint) -> Result<i64> {
 /// # Example
 /// ```rust
 /// # use protowirers::parser::parse_string;
-/// assert!(parse_string(vec![0xFF]).is_err());
-/// assert_eq!(parse_string(vec![]).unwrap(), "");
-/// assert_eq!(parse_string(vec![0x41]).unwrap(), "A");
+/// # use protowirers::wire::WireTypeLengthDelimited;
+/// assert!(parse_string(WireTypeLengthDelimited::new(vec![0xFF])).is_err());
+/// assert_eq!(parse_string(WireTypeLengthDelimited::new(vec![])).unwrap(), "");
+/// assert_eq!(parse_string(WireTypeLengthDelimited::new(vec![0x41])).unwrap(), "A");
 /// ```
-pub fn parse_string(v: Vec<u8>) -> Result<String> {
-    let s = String::from_utf8(v)?;
+pub fn parse_string(v: WireTypeLengthDelimited) -> Result<String> {
+    let s = String::from_utf8(v.value)?;
     Ok(s)
 }
 

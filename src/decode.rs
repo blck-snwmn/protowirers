@@ -100,7 +100,9 @@ fn decode_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct> {
             data,
         )?))),
         1 => Ok(WireType::Bit64(decode_64bit(data)?)),
-        2 => Ok(WireType::LengthDelimited(decode_length_delimited(data)?)),
+        2 => Ok(WireType::LengthDelimited(WireTypeLengthDelimited::new(
+            decode_length_delimited(data)?,
+        ))),
         // 3=>WireType::StartGroup,
         // 4=>WireType::EndGroup,
         5 => Ok(WireType::Bit32(decode_32bit(data)?)),
@@ -301,10 +303,10 @@ mod tests {
 
             let expected = WireStruct::new(
                 4,
-                WireType::LengthDelimited(vec![
+                WireType::LengthDelimited(WireTypeLengthDelimited::new(vec![
                     0b01111000, 0b11100011, 0b10000001, 0b10000010, 0b01111000, 0b11100011,
                     0b10000001, 0b10000010, 0b01111000, 0b11100011, 0b10000001, 0b10000010,
-                ]),
+                ])),
             );
             assert_eq!(got, expected);
             assert_eq!(c.position(), 14);
