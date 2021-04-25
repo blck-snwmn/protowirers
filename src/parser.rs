@@ -3,79 +3,6 @@ use crate::zigzag;
 use anyhow::Result;
 use std::convert::TryFrom;
 use thiserror::Error;
-/// parse_i64 parse variant' value as u32
-///
-/// # Example
-/// ```rust
-/// # use protowirers::parser::parse_u32;
-/// # use protowirers::wire::WireDataVarint;
-/// assert!(parse_u32(WireDataVarint::new(u128::MAX)).is_err());
-/// assert!(parse_u32(WireDataVarint::new((u32::MAX as u128) + 1)).is_err());
-/// assert_eq!(parse_u32(WireDataVarint::new(u32::MAX as u128)).unwrap(), u32::MAX);
-/// assert_eq!(parse_u32(WireDataVarint::new((u32::MAX - 1) as u128)).unwrap(), u32::MAX - 1);
-/// assert_eq!(parse_u32(WireDataVarint::new(0)).unwrap(), 0);
-/// ```
-pub fn parse_u32(v: WireDataVarint) -> Result<u32> {
-    let u = TryFrom::try_from(v.value)?;
-    Ok(u)
-}
-
-/// parse_i64 parse variant' value as u64
-///
-/// # Example
-/// ```rust
-/// # use protowirers::parser::parse_u64;
-/// # use protowirers::wire::WireDataVarint;
-/// assert!(parse_u64(WireDataVarint::new(u128::MAX)).is_err());
-/// assert!(parse_u64(WireDataVarint::new((u64::MAX as u128) + 1)).is_err());
-/// assert_eq!(parse_u64(WireDataVarint::new(u64::MAX as u128)).unwrap(), u64::MAX);
-/// assert_eq!(parse_u64(WireDataVarint::new((u64::MAX - 1) as u128)).unwrap(), u64::MAX - 1);
-/// assert_eq!(parse_u64(WireDataVarint::new(0)).unwrap(), 0);
-/// ```
-pub fn parse_u64(v: WireDataVarint) -> Result<u64> {
-    let u = TryFrom::try_from(v.value)?;
-    Ok(u)
-}
-
-/// parse_i64 parse variant' value as i32 using zigzag
-///
-/// # Example
-/// ```rust
-/// # use protowirers::parser::parse_i32;
-/// # use protowirers::wire::WireDataVarint;
-/// assert!(parse_i32(WireDataVarint::new(u128::MAX)).is_err());
-/// assert!(parse_i32(WireDataVarint::new((u32::MAX as u128) + 1)).is_err());
-/// assert_eq!(parse_i32(WireDataVarint::new(u32::MAX as u128)).unwrap(), i32::MIN);
-/// assert_eq!(parse_i32(WireDataVarint::new((u32::MAX - 1) as u128)).unwrap(), i32::MAX);
-/// assert_eq!(parse_i32(WireDataVarint::new(0)).unwrap(), 0);
-/// assert_eq!(parse_i32(WireDataVarint::new(1)).unwrap(), -1);
-/// assert_eq!(parse_i32(WireDataVarint::new(2)).unwrap(), 1);
-/// ```
-pub fn parse_i32(v: WireDataVarint) -> Result<i32> {
-    let decoded = zigzag::decode(v.value);
-    let u = TryFrom::try_from(decoded)?;
-    Ok(u)
-}
-
-/// parse_i64 parse variant' value as i64 using zigzag
-///
-/// # Example
-/// ```rust
-/// # use protowirers::parser::parse_i64;
-/// # use protowirers::wire::WireDataVarint;
-/// assert!(parse_i64(WireDataVarint::new(u128::MAX)).is_err());
-/// assert!(parse_i64(WireDataVarint::new((u64::MAX as u128) + 1)).is_err());
-/// assert_eq!(parse_i64(WireDataVarint::new(u64::MAX as u128)).unwrap(), i64::MIN);
-/// assert_eq!(parse_i64(WireDataVarint::new((u64::MAX - 1) as u128)).unwrap(), i64::MAX);
-/// assert_eq!(parse_i64(WireDataVarint::new(0)).unwrap(), 0);
-/// assert_eq!(parse_i64(WireDataVarint::new(1)).unwrap(), -1);
-/// assert_eq!(parse_i64(WireDataVarint::new(2)).unwrap(), 1);
-/// ```
-pub fn parse_i64(v: WireDataVarint) -> Result<i64> {
-    let decoded = zigzag::decode(v.value);
-    let u = TryFrom::try_from(decoded)?;
-    Ok(u)
-}
 
 /// parse_i64 parse variant' value as String
 ///
@@ -222,5 +149,141 @@ impl Parser<u64> for WireDataVarint {
         }
         let u = TryFrom::try_from(self.value)?;
         Ok(u)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn parse_u32() {
+        assert!(
+            Parser::<u32>::parse(&WireDataVarint::new(u128::MAX), TypeVairant::Uint32).is_err()
+        );
+        assert!(Parser::<u32>::parse(
+            &WireDataVarint::new((u32::MAX as u128) + 1),
+            TypeVairant::Uint32
+        )
+        .is_err());
+        assert_eq!(
+            Parser::<u32>::parse(&WireDataVarint::new(u32::MAX as u128), TypeVairant::Uint32)
+                .unwrap(),
+            u32::MAX
+        );
+        assert_eq!(
+            Parser::<u32>::parse(
+                &WireDataVarint::new((u32::MAX - 1) as u128),
+                TypeVairant::Uint32
+            )
+            .unwrap(),
+            u32::MAX - 1
+        );
+        assert_eq!(
+            Parser::<u32>::parse(&WireDataVarint::new(0), TypeVairant::Uint32).unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn parse_u64() {
+        assert!(
+            Parser::<u64>::parse(&WireDataVarint::new(u128::MAX), TypeVairant::Uint64).is_err()
+        );
+        assert!(Parser::<u64>::parse(
+            &WireDataVarint::new((u64::MAX as u128) + 1),
+            TypeVairant::Uint64
+        )
+        .is_err());
+        assert_eq!(
+            Parser::<u64>::parse(&WireDataVarint::new(u64::MAX as u128), TypeVairant::Uint64)
+                .unwrap(),
+            u64::MAX
+        );
+        assert_eq!(
+            Parser::<u64>::parse(
+                &WireDataVarint::new((u64::MAX - 1) as u128),
+                TypeVairant::Uint64
+            )
+            .unwrap(),
+            u64::MAX - 1
+        );
+        assert_eq!(
+            Parser::<u64>::parse(&WireDataVarint::new(0), TypeVairant::Uint64).unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn parse_i32() {
+        assert!(
+            Parser::<i32>::parse(&WireDataVarint::new(u128::MAX), TypeVairant::Sint32).is_err()
+        );
+        assert!(Parser::<i32>::parse(
+            &WireDataVarint::new((u32::MAX as u128) + 1),
+            TypeVairant::Sint32
+        )
+        .is_err());
+        assert_eq!(
+            Parser::<i32>::parse(&WireDataVarint::new(u32::MAX as u128), TypeVairant::Sint32)
+                .unwrap(),
+            i32::MIN
+        );
+        assert_eq!(
+            Parser::<i32>::parse(
+                &WireDataVarint::new((u32::MAX - 1) as u128),
+                TypeVairant::Sint32
+            )
+            .unwrap(),
+            i32::MAX
+        );
+        assert_eq!(
+            Parser::<i32>::parse(&WireDataVarint::new(0), TypeVairant::Sint32).unwrap(),
+            0
+        );
+        assert_eq!(
+            Parser::<i32>::parse(&WireDataVarint::new(1), TypeVairant::Sint32).unwrap(),
+            -1
+        );
+        assert_eq!(
+            Parser::<i32>::parse(&WireDataVarint::new(2), TypeVairant::Sint32).unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn parse_i64() {
+        assert!(
+            Parser::<i64>::parse(&WireDataVarint::new(u128::MAX), TypeVairant::Sint64).is_err()
+        );
+        assert!(Parser::<i64>::parse(
+            &WireDataVarint::new((u64::MAX as u128) + 1),
+            TypeVairant::Sint64
+        )
+        .is_err());
+        assert_eq!(
+            Parser::<i64>::parse(&WireDataVarint::new(u64::MAX as u128), TypeVairant::Sint64)
+                .unwrap(),
+            i64::MIN
+        );
+        assert_eq!(
+            Parser::<i64>::parse(
+                &WireDataVarint::new((u64::MAX - 1) as u128),
+                TypeVairant::Sint64
+            )
+            .unwrap(),
+            i64::MAX
+        );
+        assert_eq!(
+            Parser::<i64>::parse(&WireDataVarint::new(0), TypeVairant::Sint64).unwrap(),
+            0
+        );
+        assert_eq!(
+            Parser::<i64>::parse(&WireDataVarint::new(1), TypeVairant::Sint64).unwrap(),
+            -1
+        );
+        assert_eq!(
+            Parser::<i64>::parse(&WireDataVarint::new(2), TypeVairant::Sint64).unwrap(),
+            1
+        );
     }
 }
