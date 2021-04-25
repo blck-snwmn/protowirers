@@ -14,7 +14,7 @@ enum DecodeError {
     #[error("unexpected red size. got={0}, want={1}")]
     UnexpectRepeatSizeError(u128, u128),
     #[error("no expected type value. got={0}")]
-    UnexpectedWireTypeValueError(u128),
+    UnexpectedWireDataValueError(u128),
 }
 
 // decode_variants decode base variants
@@ -96,17 +96,17 @@ fn decode_tag(data: &mut Cursor<&[u8]>) -> Result<(u128, u128)> {
 fn decode_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct> {
     let (field_num, wire_type) = decode_tag(data)?;
     let wt = match wire_type {
-        0 => Ok(WireData::Varint(WireTypeVarint::new(decode_variants(
+        0 => Ok(WireData::Varint(WireDataVarint::new(decode_variants(
             data,
         )?))),
         1 => Ok(WireData::Bit64(decode_64bit(data)?)),
-        2 => Ok(WireData::LengthDelimited(WireTypeLengthDelimited::new(
+        2 => Ok(WireData::LengthDelimited(WireDataLengthDelimited::new(
             decode_length_delimited(data)?,
         ))),
-        // 3=>WireType::StartGroup,
-        // 4=>WireType::EndGroup,
+        // 3=>WireData::StartGroup,
+        // 4=>WireData::EndGroup,
         5 => Ok(WireData::Bit32(decode_32bit(data)?)),
-        _ => Err(DecodeError::UnexpectedWireTypeValueError(wire_type)),
+        _ => Err(DecodeError::UnexpectedWireDataValueError(wire_type)),
     }?;
     Ok(WireStruct::new(field_num, wt))
 }
@@ -303,7 +303,7 @@ mod tests {
 
             let expected = WireStruct::new(
                 4,
-                WireData::LengthDelimited(WireTypeLengthDelimited::new(vec![
+                WireData::LengthDelimited(WireDataLengthDelimited::new(vec![
                     0b01111000, 0b11100011, 0b10000001, 0b10000010, 0b01111000, 0b11100011,
                     0b10000001, 0b10000010, 0b01111000, 0b11100011, 0b10000001, 0b10000010,
                 ])),
@@ -319,7 +319,7 @@ mod tests {
 
             let got = decode_struct(&mut c).unwrap();
 
-            let expected = WireStruct::new(1000, WireData::Varint(WireTypeVarint::new(10467)));
+            let expected = WireStruct::new(1000, WireData::Varint(WireDataVarint::new(10467)));
             assert_eq!(got, expected);
             assert_eq!(c.position(), 4);
         }

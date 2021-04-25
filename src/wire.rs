@@ -37,7 +37,7 @@ impl WireStruct {
         U: Into<u128>,
     {
         let data: u128 = data.encode().into();
-        Self::new(field_number, WireData::Varint(WireTypeVarint::new(data)))
+        Self::new(field_number, WireData::Varint(WireDataVarint::new(data)))
     }
     pub fn from_i32(field_number: FieldNumber, data: i32) -> Self {
         Self::from_in(field_number, data)
@@ -48,36 +48,36 @@ impl WireStruct {
     pub fn from_u32(field_number: FieldNumber, data: u32) -> Self {
         Self::new(
             field_number,
-            WireData::Varint(WireTypeVarint::new(data as u128)),
+            WireData::Varint(WireDataVarint::new(data as u128)),
         )
     }
     pub fn from_u64(field_number: FieldNumber, data: u64) -> Self {
         Self::new(
             field_number,
-            WireData::Varint(WireTypeVarint::new(data as u128)),
+            WireData::Varint(WireDataVarint::new(data as u128)),
         )
     }
     pub fn from_string(field_number: FieldNumber, data: String) -> Self {
         let data = Vec::from(data);
         Self::new(
             field_number,
-            WireData::LengthDelimited(WireTypeLengthDelimited::new(data)),
+            WireData::LengthDelimited(WireDataLengthDelimited::new(data)),
         )
     }
     pub fn from_vec(field_number: FieldNumber, data: String) -> Self {
         let data = Vec::from(data);
         Self::new(
             field_number,
-            WireData::LengthDelimited(WireTypeLengthDelimited::new(data)),
+            WireData::LengthDelimited(WireDataLengthDelimited::new(data)),
         )
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum WireData {
-    Varint(WireTypeVarint),
+    Varint(WireDataVarint),
     Bit64([u8; 8]),
-    LengthDelimited(WireTypeLengthDelimited),
+    LengthDelimited(WireDataLengthDelimited),
     // StartGroup,
     // EndGroup,
     Bit32([u8; 4]),
@@ -106,30 +106,30 @@ impl Display for WireData {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct WireTypeVarint {
+pub struct WireDataVarint {
     pub value: u128,
 }
 
-impl WireTypeVarint {
+impl WireDataVarint {
     pub fn new(v: u128) -> Self {
-        WireTypeVarint { value: v }
+        WireDataVarint { value: v }
     }
 }
 
-impl Display for WireTypeVarint {
+impl Display for WireDataVarint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Varint{}", self.value)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct WireTypeLengthDelimited {
+pub struct WireDataLengthDelimited {
     pub value: Vec<u8>,
 }
 
-impl WireTypeLengthDelimited {
+impl WireDataLengthDelimited {
     pub fn new(v: Vec<u8>) -> Self {
-        WireTypeLengthDelimited { value: v }
+        WireDataLengthDelimited { value: v }
     }
 }
 

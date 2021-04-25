@@ -79,7 +79,7 @@ pub fn encode_wire_binary(data: &mut Cursor<Vec<u8>>, inputs: Vec<WireStruct>) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::wire::{WireData, WireTypeLengthDelimited, WireTypeVarint};
+    use crate::wire::{WireData, WireDataLengthDelimited, WireDataVarint};
     use std::io::Read;
     #[test]
     fn test_encode_variants() {
@@ -215,7 +215,7 @@ mod tests {
             let mut c = Cursor::new(Vec::new());
             let ws = WireStruct::new(
                 4,
-                WireData::LengthDelimited(WireTypeLengthDelimited::new(vec![
+                WireData::LengthDelimited(WireDataLengthDelimited::new(vec![
                     0b01111000, 0b11100011, 0b10000001, 0b10000010, 0b01111000, 0b11100011,
                     0b10000001, 0b10000010, 0b01111000, 0b11100011, 0b10000001, 0b10000010,
                 ])),
@@ -233,7 +233,7 @@ mod tests {
         }
         {
             let mut c = Cursor::new(Vec::new());
-            let ws = WireStruct::new(1000, WireData::Varint(WireTypeVarint::new(10467)));
+            let ws = WireStruct::new(1000, WireData::Varint(WireDataVarint::new(10467)));
             encode_struct(&mut c, ws).unwrap();
             assert_eq!(c.position(), 4);
             assert_eq!(
@@ -247,7 +247,7 @@ mod tests {
     fn test_encode_wire_binary() {
         {
             let mut c = Cursor::new(Vec::new());
-            let ws = WireStruct::new(1000, WireData::Varint(WireTypeVarint::new(10467)));
+            let ws = WireStruct::new(1000, WireData::Varint(WireDataVarint::new(10467)));
             encode_wire_binary(&mut c, vec![ws]).unwrap();
             assert_eq!(c.position(), 4);
             assert_eq!(
