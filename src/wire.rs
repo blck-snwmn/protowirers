@@ -107,12 +107,17 @@ impl Display for WireData {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WireDataVarint {
+    pub ty: TypeVairant,
     pub value: u128,
 }
 
 impl WireDataVarint {
     pub fn new(v: u128) -> Self {
-        WireDataVarint { value: v }
+        // TODO 暫定でInt64をセット
+        WireDataVarint {
+            ty: TypeVairant::Int64,
+            value: v,
+        }
     }
 }
 
@@ -124,28 +129,46 @@ impl Display for WireDataVarint {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WireDataLengthDelimited {
+    pub ty: TypeLengthDelimited,
     pub value: Vec<u8>,
 }
 
 impl WireDataLengthDelimited {
     pub fn new(v: Vec<u8>) -> Self {
-        WireDataLengthDelimited { value: v }
+        // TODO 暫定でWireStringをセット
+        WireDataLengthDelimited {
+            ty: TypeLengthDelimited::WireString,
+            value: v,
+        }
     }
 }
-
-pub enum TypeBit64 {
-    Fixed64(u64), // 要確認
-    Sfixed64(i64),
-    Double(f64),
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum TypeVairant {
+    Int32,
+    Int64,
+    Uint32,
+    Uint64,
+    Sint32,
+    Sint64,
+    Bool,
+    Enum,
 }
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum TypeBit64 {
+    Fixed64,
+    Sfixed64,
+    Double,
+}
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TypeLengthDelimited {
-    WireString(String),
+    WireString,
     Bytes,
-    EmbeddedMessages(Box<dyn Proto>),
+    EmbeddedMessages,
     PackedRepeatedFields,
 }
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TypeBit32 {
-    Fixed32(u32),
-    Sfixed32(i32),
-    Float(f32),
+    Fixed32,
+    Sfixed32,
+    Float,
 }
