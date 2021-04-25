@@ -152,6 +152,20 @@ impl Parser<u64> for WireDataVarint {
     }
 }
 
+impl<T: Proto> Parser<T> for WireDataLengthDelimited {
+    type Type = TypeLengthDelimited;
+    fn parse(&self, ty: Self::Type) -> Result<T> {
+        if !matches!(ty, TypeLengthDelimited::EmbeddedMessages) {
+            return Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}", TypeLengthDelimited::EmbeddedMessages},
+                got: format! {"{:?}", ty},
+            })?;
+        }
+        let r = T::parse(self.value.as_slice())?;
+        Ok(r)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
