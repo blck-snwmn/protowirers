@@ -29,7 +29,8 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     Ok(quote! {
         use std::io::Cursor;
         use anyhow::Result;
-        use protowirers::{parser, wire};
+        use protowirers::parser::*;
+        use protowirers::wire::*;
 
         impl #input_indent{
             pub fn parse(bytes: &[u8])->Result<Self>{

@@ -107,44 +107,36 @@ impl Display for WireData {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WireDataVarint {
-    pub ty: TypeVairant,
     pub value: u128,
 }
 
 impl WireDataVarint {
     pub fn new(v: u128) -> Self {
         // TODO 暫定でInt64をセット
-        WireDataVarint {
-            ty: TypeVairant::Int64,
-            value: v,
-        }
+        WireDataVarint { value: v }
     }
 }
 
 impl Display for WireDataVarint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Varint{{{:?}, {}}}", self.ty, self.value)
+        write!(f, "Varint{{{}}}", self.value)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WireDataLengthDelimited {
-    pub ty: TypeLengthDelimited,
     pub value: Vec<u8>,
 }
 
 impl WireDataLengthDelimited {
     pub fn new(v: Vec<u8>) -> Self {
         // TODO 暫定でWireStringをセット
-        WireDataLengthDelimited {
-            ty: TypeLengthDelimited::WireString,
-            value: v,
-        }
+        WireDataLengthDelimited { value: v }
     }
 }
 impl Display for WireDataLengthDelimited {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "LengthDelimited{{{:?}, {:?}}}", self.ty, self.value)
+        write!(f, "LengthDelimited{{{:?}}}", self.value)
     }
 }
 

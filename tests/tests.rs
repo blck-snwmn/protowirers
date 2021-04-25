@@ -13,7 +13,7 @@ fn test_can_call() {
 fn test_mapping() {
     #[derive(Proto)]
     struct Sample {
-        #[def(field_num = 1, def_type = "int32")]
+        #[def(field_num = 1, def_type = "uint32")]
         s: u32,
         #[def(field_num = 2, def_type = "sint64")]
         x: i64,
@@ -30,7 +30,7 @@ fn test_mapping() {
 fn test_mapping_change_order_field_num() {
     #[derive(Proto)]
     struct Sample {
-        #[def(field_num = 2, def_type = "int32")]
+        #[def(field_num = 2, def_type = "uint32")]
         age: u32,
         #[def(field_num = 1, def_type = "sint64")]
         score: i64,

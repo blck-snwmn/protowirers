@@ -132,11 +132,12 @@ impl<'a> Field<'a> {
         let filed_indent = &self.original.ident;
         let a = &self.attr;
         let fieild_num = a.filed_num as u128;
-        let def_type = a.def_type.to_parse_function();
+        let wire_data_type = a.def_type.to_input_wire_data_type();
         let mach_wire_type = a.def_type.to_corresponding_wire_type();
         quote! {
             (#fieild_num, #mach_wire_type(v)) => {
-                #filed_indent = Some(#def_type(v)?);
+                // #filed_indent = Some(#def_type(v)?);
+                #filed_indent = Some(v.parse(#wire_data_type)?);
             }
         }
     }
@@ -265,6 +266,7 @@ impl<'a> Attribute<'a> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum DefType {
+    Uint32,
     Int32,
     Sint64,
     String,
@@ -274,6 +276,7 @@ impl DefType {
     fn new(s: String) -> Option<Self> {
         match s.as_ref() {
             "int32" => Some(DefType::Int32),
+            "uint32" => Some(DefType::Uint32),
             "sint64" => Some(DefType::Sint64),
             "string" => Some(DefType::String),
             _ => None,
@@ -281,22 +284,33 @@ impl DefType {
     }
     fn allows_rust_type(&self, ty: &syn::Type) -> bool {
         match (&self, ty) {
-            (DefType::Int32, &syn::Type::Path(ref p)) if p.path.is_ident("u32") => true,
+            (DefType::Int32, &syn::Type::Path(ref p)) if p.path.is_ident("i32") => true,
+            (DefType::Uint32, &syn::Type::Path(ref p)) if p.path.is_ident("u32") => true,
             (DefType::Sint64, &syn::Type::Path(ref p)) if p.path.is_ident("i64") => true,
             (DefType::String, &syn::Type::Path(ref p)) if p.path.is_ident("String") => true,
             _ => false,
         }
     }
-    fn to_parse_function(&self) -> proc_macro2::TokenStream {
+    // fn to_parse_function(&self) -> proc_macro2::TokenStream {
+    //     match &self {
+    //         DefType::Int32 => quote! {parser::parse_u32},
+    //         DefType::Sint64 => quote! {parser::parse_i64},
+    //         DefType::String => quote! {parser::parse_string},
+    //     }
+    // }
+
+    fn to_input_wire_data_type(&self) -> proc_macro2::TokenStream {
         match &self {
-            DefType::Int32 => quote! {parser::parse_u32},
-            DefType::Sint64 => quote! {parser::parse_i64},
-            DefType::String => quote! {parser::parse_string},
+            DefType::Int32 => quote! {wire::TypeVairant::Int32},
+            DefType::Uint32 => quote! {wire::TypeVairant::Uint32},
+            DefType::Sint64 => quote! {wire::TypeVairant::Sint64},
+            DefType::String => quote! {wire::TypeLengthDelimited::WireString},
         }
     }
     fn to_gen_function(&self) -> proc_macro2::TokenStream {
         match &self {
             DefType::Int32 => quote! {wire::WireStruct::from_u32},
+            DefType::Uint32 => quote! {wire::WireStruct::from_u32},
             DefType::Sint64 => quote! {wire::WireStruct::from_i64},
             DefType::String => quote! {wire::WireStruct::from_string},
         }
@@ -304,6 +318,7 @@ impl DefType {
     fn to_corresponding_wire_type(&self) -> proc_macro2::TokenStream {
         match &self {
             DefType::Int32 => quote! {wire::WireData::Varint},
+            DefType::Uint32 => quote! {wire::WireData::Varint},
             DefType::Sint64 => quote! {wire::WireData::Varint},
             DefType::String => quote! {wire::WireData::LengthDelimited},
         }

@@ -6,7 +6,9 @@ struct Sample {
     x: i64,
 }
 use anyhow::Result;
-use protowirers::{decode, encode, parser, wire};
+use protowirers::parser::Parser;
+use protowirers::wire::*;
+use protowirers::{decode, encode};
 use std::io::Cursor;
 impl Sample {
     pub fn parse(bytes: &[u8]) -> Result<Self> {
@@ -19,11 +21,11 @@ impl Sample {
         // parser 内で Hashmap<u128, Vec<>> にし、関数呼び出しのみでセットする
         for sw in result {
             match (sw.field_number(), sw.wire_type()) {
-                (1, wire::WireData::Varint(v)) => {
-                    s = parser::parse_u32(v)?;
+                (1, WireData::Varint(v)) => {
+                    s = v.parse(TypeVairant::Uint32)?;
                 }
-                (2, wire::WireData::Varint(v)) => {
-                    x = parser::parse_i64(v)?;
+                (2, WireData::Varint(v)) => {
+                    x = v.parse(TypeVairant::Uint64)?;
                 }
                 _ => (),
             }
@@ -33,8 +35,8 @@ impl Sample {
 
     pub fn bytes(&self) -> Result<Vec<u8>> {
         let inputs = vec![
-            wire::WireStruct::from_u32(1, self.s),
-            wire::WireStruct::from_i64(2, self.x),
+            WireStruct::from_u32(1, self.s),
+            WireStruct::from_i64(2, self.x),
         ];
         let mut c = Cursor::new(Vec::new());
         encode::encode_wire_binary(&mut c, inputs)?;

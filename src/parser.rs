@@ -1,8 +1,8 @@
-use crate::wire::{WireDataLengthDelimited, WireDataVarint};
+use crate::wire::*;
 use crate::zigzag;
 use anyhow::Result;
 use std::convert::TryFrom;
-
+use thiserror::Error;
 /// parse_i64 parse variant' value as u32
 ///
 /// # Example
@@ -102,18 +102,125 @@ pub fn parse_vec_i32(v: Vec<u8>) -> Result<Vec<i32>> {
     Ok(x)
 }
 
-impl From<WireDataLengthDelimited> for Vec<i32> {
-    fn from(v: WireDataLengthDelimited) -> Self {
-        v.value.iter().map(|vv| *vv as i32).collect()
+#[derive(Error, Debug)]
+enum ParseError {
+    #[error("unexpected type. got={got}, want={want}")]
+    UnexpectTypeError { want: String, got: String },
+}
+
+pub trait Parser<Output> {
+    type Type;
+    fn parse(&self, ty: Self::Type) -> Result<Output>;
+}
+
+impl Parser<String> for WireDataLengthDelimited {
+    type Type = TypeLengthDelimited;
+    fn parse(&self, ty: Self::Type) -> Result<String> {
+        if !matches!(ty, TypeLengthDelimited::WireString) {
+            return Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeLengthDelimited::WireString},
+                got: format! {"{:?}", ty},
+            })?;
+        }
+        let s = String::from_utf8(self.value.clone())?;
+        Ok(s)
     }
 }
 
-pub trait From<T>: Sized {
-    fn from(_: T) -> Self;
+impl Parser<Vec<i64>> for WireDataLengthDelimited {
+    type Type = TypeLengthDelimited;
+    fn parse(&self, ty: Self::Type) -> Result<Vec<i64>> {
+        if !matches!(ty, TypeLengthDelimited::PackedRepeatedFields) {
+            return Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeLengthDelimited::PackedRepeatedFields},
+                got: format! {"{:?}", ty},
+            })?;
+        }
+        let x = self.value.iter().map(|vv| *vv as i64).collect();
+        Ok(x)
+    }
 }
 
-// pub fn parse_length_delimited<T>() -> Result<T> {}
+impl Parser<Vec<i32>> for WireDataLengthDelimited {
+    type Type = TypeLengthDelimited;
+    fn parse(&self, ty: Self::Type) -> Result<Vec<i32>> {
+        if !matches!(ty, TypeLengthDelimited::PackedRepeatedFields) {
+            return Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeLengthDelimited::PackedRepeatedFields},
+                got: format! {"{:?}", ty},
+            })?;
+        }
+        let x = self.value.iter().map(|vv| *vv as i32).collect();
+        Ok(x)
+    }
+}
 
-trait Parser {
-    fn parse<T>(v: WireDataLengthDelimited) -> Result<T>;
+impl Parser<i32> for WireDataVarint {
+    type Type = TypeVairant;
+    fn parse(&self, ty: Self::Type) -> Result<i32> {
+        match ty {
+            TypeVairant::Int32 => {
+                let u = TryFrom::try_from(self.value)?;
+                Ok(u)
+            }
+            TypeVairant::Sint32 => {
+                let decoded = zigzag::decode(self.value);
+                let u = TryFrom::try_from(decoded)?;
+                Ok(u)
+            }
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?} or {:?}",TypeVairant::Int32, TypeVairant::Sint32},
+                got: format! {"{:?}", ty},
+            })?,
+        }
+    }
+}
+
+impl Parser<i64> for WireDataVarint {
+    type Type = TypeVairant;
+    fn parse(&self, ty: Self::Type) -> Result<i64> {
+        match ty {
+            TypeVairant::Int64 => {
+                let u = TryFrom::try_from(self.value)?;
+                Ok(u)
+            }
+            TypeVairant::Sint64 => {
+                let decoded = zigzag::decode(self.value);
+                let u = TryFrom::try_from(decoded)?;
+                Ok(u)
+            }
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?} or {:?}",TypeVairant::Int64, TypeVairant::Sint64},
+                got: format! {"{:?}", ty},
+            })?,
+        }
+    }
+}
+
+impl Parser<u32> for WireDataVarint {
+    type Type = TypeVairant;
+    fn parse(&self, ty: Self::Type) -> Result<u32> {
+        if !matches!(ty, TypeVairant::Uint32) {
+            return Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeVairant::Uint32},
+                got: format! {"{:?}", ty},
+            })?;
+        }
+        let u = TryFrom::try_from(self.value)?;
+        Ok(u)
+    }
+}
+
+impl Parser<u64> for WireDataVarint {
+    type Type = TypeVairant;
+    fn parse(&self, ty: Self::Type) -> Result<u64> {
+        if !matches!(ty, TypeVairant::Uint64) {
+            return Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeVairant::Uint64},
+                got: format! {"{:?}", ty},
+            })?;
+        }
+        let u = TryFrom::try_from(self.value)?;
+        Ok(u)
+    }
 }
