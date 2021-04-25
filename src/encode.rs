@@ -52,16 +52,16 @@ fn encode_tag(data: &mut Cursor<Vec<u8>>, field_number: u128, field_type: u128) 
 fn encode_struct(data: &mut Cursor<Vec<u8>>, input: WireStruct) -> Result<()> {
     encode_tag(data, input.field_number(), input.wire_type().type_number())?;
     match input.wire_type() {
-        crate::wire::WireType::Varint(v) => {
+        crate::wire::WireData::Varint(v) => {
             encode_variants(data, v.value)?;
         }
-        crate::wire::WireType::Bit64(b) => {
+        crate::wire::WireData::Bit64(b) => {
             encode(data, b)?;
         }
-        crate::wire::WireType::LengthDelimited(l) => {
+        crate::wire::WireData::LengthDelimited(l) => {
             encode_length_delimited(data, l.value)?;
         }
-        crate::wire::WireType::Bit32(b) => {
+        crate::wire::WireData::Bit32(b) => {
             encode(data, b)?;
         }
     }
@@ -79,7 +79,7 @@ pub fn encode_wire_binary(data: &mut Cursor<Vec<u8>>, inputs: Vec<WireStruct>) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::wire::{WireType, WireTypeLengthDelimited, WireTypeVarint};
+    use crate::wire::{WireData, WireTypeLengthDelimited, WireTypeVarint};
     use std::io::Read;
     #[test]
     fn test_encode_variants() {
@@ -183,7 +183,7 @@ mod tests {
             let mut c = Cursor::new(Vec::new());
             let ws = WireStruct::new(
                 8,
-                WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+                WireData::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
             );
             encode_struct(&mut c, ws).unwrap();
             assert_eq!(c.position(), 5);
@@ -196,7 +196,7 @@ mod tests {
             let mut c = Cursor::new(Vec::new());
             let ws = WireStruct::new(
                 1,
-                WireType::Bit64([
+                WireData::Bit64([
                     0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
                     0b11110000, 0b00111111,
                 ]),
@@ -215,7 +215,7 @@ mod tests {
             let mut c = Cursor::new(Vec::new());
             let ws = WireStruct::new(
                 4,
-                WireType::LengthDelimited(WireTypeLengthDelimited::new(vec![
+                WireData::LengthDelimited(WireTypeLengthDelimited::new(vec![
                     0b01111000, 0b11100011, 0b10000001, 0b10000010, 0b01111000, 0b11100011,
                     0b10000001, 0b10000010, 0b01111000, 0b11100011, 0b10000001, 0b10000010,
                 ])),
@@ -233,7 +233,7 @@ mod tests {
         }
         {
             let mut c = Cursor::new(Vec::new());
-            let ws = WireStruct::new(1000, WireType::Varint(WireTypeVarint::new(10467)));
+            let ws = WireStruct::new(1000, WireData::Varint(WireTypeVarint::new(10467)));
             encode_struct(&mut c, ws).unwrap();
             assert_eq!(c.position(), 4);
             assert_eq!(
@@ -247,7 +247,7 @@ mod tests {
     fn test_encode_wire_binary() {
         {
             let mut c = Cursor::new(Vec::new());
-            let ws = WireStruct::new(1000, WireType::Varint(WireTypeVarint::new(10467)));
+            let ws = WireStruct::new(1000, WireData::Varint(WireTypeVarint::new(10467)));
             encode_wire_binary(&mut c, vec![ws]).unwrap();
             assert_eq!(c.position(), 4);
             assert_eq!(
@@ -259,7 +259,7 @@ mod tests {
             let mut c = Cursor::new(Vec::new());
             let wss = vec![WireStruct::new(
                 8,
-                WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+                WireData::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
             )];
             encode_wire_binary(&mut c, wss).unwrap();
             assert_eq!(c.position(), 5);
@@ -273,11 +273,11 @@ mod tests {
             let wss = vec![
                 WireStruct::new(
                     8,
-                    WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+                    WireData::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
                 ),
                 WireStruct::new(
                     1,
-                    WireType::Bit64([
+                    WireData::Bit64([
                         0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
                         0b11110000, 0b00111111,
                     ]),
@@ -299,11 +299,11 @@ mod tests {
             let wss = vec![
                 WireStruct::new(
                     8,
-                    WireType::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+                    WireData::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
                 ),
                 WireStruct::new(
                     1,
-                    WireType::Bit64([
+                    WireData::Bit64([
                         0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
                         0b11110000, 0b00111111,
                     ]),

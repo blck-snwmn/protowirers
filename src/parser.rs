@@ -97,7 +97,23 @@ pub fn parse_vec_i64(v: Vec<u8>) -> Result<Vec<i64>> {
     Ok(x)
 }
 
-pub fn parse_vec_i32(v: Vec<u8>) -> Result<Vec<i64>> {
-    let x = v.iter().map(|vv| *vv as i64).collect();
+pub fn parse_vec_i32(v: Vec<u8>) -> Result<Vec<i32>> {
+    let x = v.iter().map(|vv| *vv as i32).collect();
     Ok(x)
+}
+
+impl From<WireTypeLengthDelimited> for Vec<i32> {
+    fn from(v: WireTypeLengthDelimited) -> Self {
+        v.value.iter().map(|vv| *vv as i32).collect()
+    }
+}
+
+pub trait From<T>: Sized {
+    fn from(_: T) -> Self;
+}
+
+// pub fn parse_length_delimited<T>() -> Result<T> {}
+
+trait Parser {
+    fn parse<T>(v: WireTypeLengthDelimited) -> Result<T>;
 }

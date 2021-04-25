@@ -303,9 +303,9 @@ impl DefType {
     }
     fn to_corresponding_wire_type(&self) -> proc_macro2::TokenStream {
         match &self {
-            DefType::Int32 => quote! {wire::WireType::Varint},
-            DefType::Sint64 => quote! {wire::WireType::Varint},
-            DefType::String => quote! {wire::WireType::LengthDelimited},
+            DefType::Int32 => quote! {wire::WireData::Varint},
+            DefType::Sint64 => quote! {wire::WireData::Varint},
+            DefType::String => quote! {wire::WireData::LengthDelimited},
         }
     }
 }

@@ -19,10 +19,10 @@ impl Sample {
         // parser 内で Hashmap<u128, Vec<>> にし、関数呼び出しのみでセットする
         for sw in result {
             match (sw.field_number(), sw.wire_type()) {
-                (1, wire::WireType::Varint(v)) => {
+                (1, wire::WireData::Varint(v)) => {
                     s = parser::parse_u32(v)?;
                 }
-                (2, wire::WireType::Varint(v)) => {
+                (2, wire::WireData::Varint(v)) => {
                     x = parser::parse_i64(v)?;
                 }
                 _ => (),
