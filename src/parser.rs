@@ -82,6 +82,20 @@ impl Parser<Vec<i32>> for WireDataLengthDelimited {
     }
 }
 
+impl<T: Proto> Parser<T> for WireDataLengthDelimited {
+    type Type = TypeLengthDelimited;
+    fn parse(&self, ty: Self::Type) -> Result<T> {
+        if !matches!(ty, TypeLengthDelimited::EmbeddedMessages) {
+            return Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}", TypeLengthDelimited::EmbeddedMessages},
+                got: format! {"{:?}", ty},
+            })?;
+        }
+        let r = T::parse(self.value.as_slice())?;
+        Ok(r)
+    }
+}
+
 impl Parser<i32> for WireDataVarint {
     type Type = TypeVairant;
     fn parse(&self, ty: Self::Type) -> Result<i32> {
@@ -149,20 +163,6 @@ impl Parser<u64> for WireDataVarint {
         }
         let u = TryFrom::try_from(self.value)?;
         Ok(u)
-    }
-}
-
-impl<T: Proto> Parser<T> for WireDataLengthDelimited {
-    type Type = TypeLengthDelimited;
-    fn parse(&self, ty: Self::Type) -> Result<T> {
-        if !matches!(ty, TypeLengthDelimited::EmbeddedMessages) {
-            return Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}", TypeLengthDelimited::EmbeddedMessages},
-                got: format! {"{:?}", ty},
-            })?;
-        }
-        let r = T::parse(self.value.as_slice())?;
-        Ok(r)
     }
 }
 
