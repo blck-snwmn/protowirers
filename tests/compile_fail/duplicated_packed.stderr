@@ -1,0 +1,5 @@
+error: packed is duplicated in #[def(...)].
+ --> $DIR/duplicated_packed.rs:5:54
+  |
+5 |     #[def(field_num = 1, def_type = "int32", packed, packed)]
+  |                                                      ^^^^^^

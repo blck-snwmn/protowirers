@@ -1,5 +1,5 @@
 error: def_type is duplicated in #[def(...)].
- --> $DIR/def_type_is_duplicated.rs:5:46
+ --> $DIR/duplicated_def_type.rs:5:46
   |
 5 |     #[def(field_num = 1, def_type = "int32", def_type = "int32")]
   |                                              ^^^^^^^^^^^^^^^^^^

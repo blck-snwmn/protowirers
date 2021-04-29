@@ -1,4 +1,4 @@
-error: only `foo = bar` format is allowed.
+error: unsported meta data.
  --> $DIR/unsupoted_meta_data_format.rs:5:48
   |
 5 |     #[def(field_num = 100, def_type = "int32", "int32")]

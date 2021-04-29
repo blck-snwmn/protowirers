@@ -1,0 +1,5 @@
+error: repeated is duplicated in #[def(...)].
+ --> $DIR/duplicated_repeated.rs:5:56
+  |
+5 |     #[def(field_num = 1, def_type = "int32", repeated, repeated)]
+  |                                                        ^^^^^^^^

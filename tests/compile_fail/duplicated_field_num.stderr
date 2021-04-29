@@ -1,5 +1,5 @@
 error: field_num is duplicated in #[def(...)].
- --> $DIR/field_num_is_duplicated.rs:5:26
+ --> $DIR/duplicated_field_num.rs:5:26
   |
 5 |     #[def(field_num = 1, field_num = 2, def_type = "int32")]
   |                          ^^^^^^^^^^^^^
