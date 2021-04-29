@@ -58,6 +58,7 @@ impl<'a> Struct<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn build_gen_wirestructs(&self) -> proc_macro2::TokenStream {
         let build_gen_wirestructs = self.fields.iter().map(|f| f.build_gen_wirestructs());
         quote! {
@@ -102,7 +103,7 @@ impl<'a> Field<'a> {
                 &ty,
                 format!(
                     "defined def_type `{:?}` does not match this Rust type",
-                    attr.def_type
+                    attr.def_type,
                 ),
             ))?
         }
@@ -133,6 +134,20 @@ impl<'a> Field<'a> {
         let a = &self.attr;
         let fieild_num = a.filed_num as u128;
         let wire_data_type = a.def_type.to_input_wire_data_type();
+
+        // repeated & packed は LengthDelimited として扱う
+        if self.attr.repeated && self.attr.packed {
+            return quote! {
+                (#fieild_num, wire::WireData::LengthDelimited(v)) => {
+                    // #filed_indent = Some(#def_type(v)?);
+                    let vv = wire::TypeLengthDelimited::PackedRepeatedFields(
+                        wire::AllowedPakcedType::Variant(#wire_data_type)
+                    );
+                    #filed_indent = Some(v.parse(vv)?);
+                }
+            };
+        }
+
         let mach_wire_type = a.def_type.to_corresponding_wire_type();
         quote! {
             (#fieild_num, #mach_wire_type(v)) => {
@@ -320,11 +335,35 @@ impl DefType {
             _ => None,
         }
     }
+    // TODO ここは他のattribute も含めて判断するので、ここで判断しない！
     fn allows_rust_type(&self, ty: &syn::Type) -> bool {
         match (&self, ty) {
             (DefType::Int32, &syn::Type::Path(ref p)) if p.path.is_ident("i32") => true,
             (DefType::Uint32, &syn::Type::Path(ref p)) if p.path.is_ident("u32") => true,
-            (DefType::Sint64, &syn::Type::Path(ref p)) if p.path.is_ident("i64") => true,
+            (DefType::Sint64, &syn::Type::Path(ref p)) => {
+                if p.path.is_ident("i64") {
+                    return true;
+                }
+                p.path
+                    .segments
+                    .iter()
+                    .find(|x| x.ident == "Vec")
+                    .and_then(|x| match &x.arguments {
+                        syn::PathArguments::AngleBracketed(ab) => Some(ab),
+                        _ => None,
+                    })
+                    .and_then(|abga| {
+                        abga.args.iter().find_map(|ga| match ga {
+                            syn::GenericArgument::Type(t) => Some(t),
+                            _ => None,
+                        })
+                    })
+                    .map(|t| match t {
+                        syn::Type::Path(tp) => tp.path.is_ident("i64"),
+                        _ => false,
+                    })
+                    .is_some()
+            }
             (DefType::String, &syn::Type::Path(ref p)) if p.path.is_ident("String") => true,
             _ => false,
         }
@@ -345,6 +384,7 @@ impl DefType {
             DefType::String => quote! {wire::TypeLengthDelimited::WireString},
         }
     }
+    #[allow(dead_code)]
     fn to_gen_function(&self) -> proc_macro2::TokenStream {
         match &self {
             DefType::Int32 => quote! {wire::WireStruct::from_u32},
