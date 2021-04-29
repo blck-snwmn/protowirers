@@ -4,31 +4,6 @@ use anyhow::Result;
 use std::convert::TryFrom;
 use thiserror::Error;
 
-/// parse_i64 parse variant' value as String
-///
-/// # Example
-/// ```rust
-/// # use protowirers::parser::parse_string;
-/// # use protowirers::wire::WireDataLengthDelimited;
-/// assert!(parse_string(WireDataLengthDelimited::new(vec![0xFF])).is_err());
-/// assert_eq!(parse_string(WireDataLengthDelimited::new(vec![])).unwrap(), "");
-/// assert_eq!(parse_string(WireDataLengthDelimited::new(vec![0x41])).unwrap(), "A");
-/// ```
-pub fn parse_string(v: WireDataLengthDelimited) -> Result<String> {
-    let s = String::from_utf8(v.value)?;
-    Ok(s)
-}
-
-pub fn parse_vec_i64(v: Vec<u8>) -> Result<Vec<i64>> {
-    let x = v.iter().map(|vv| *vv as i64).collect();
-    Ok(x)
-}
-
-pub fn parse_vec_i32(v: Vec<u8>) -> Result<Vec<i32>> {
-    let x = v.iter().map(|vv| *vv as i32).collect();
-    Ok(x)
-}
-
 pub trait VariantToValue: Sized {
     fn parse(input: u128, ty: TypeVairant) -> Result<Self>;
 }
@@ -316,6 +291,31 @@ mod tests {
         assert_eq!(
             Parser::<i64>::parse(&WireDataVarint::new(2), TypeVairant::Sint64).unwrap(),
             1
+        );
+    }
+
+    #[test]
+    fn parse_string() {
+        assert!(Parser::<String>::parse(
+            &WireDataLengthDelimited::new(vec![0xFF]),
+            TypeLengthDelimited::WireString,
+        )
+        .is_err());
+        assert_eq!(
+            Parser::<String>::parse(
+                &WireDataLengthDelimited::new(vec![]),
+                TypeLengthDelimited::WireString,
+            )
+            .unwrap(),
+            ""
+        );
+        assert_eq!(
+            Parser::<String>::parse(
+                &WireDataLengthDelimited::new(vec![0x41, 0x41, 0x41]),
+                TypeLengthDelimited::WireString,
+            )
+            .unwrap(),
+            "AAA"
         );
     }
 
