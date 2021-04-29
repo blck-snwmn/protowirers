@@ -162,8 +162,16 @@ pub enum TypeLengthDelimited {
     WireString,
     Bytes,
     EmbeddedMessages,
-    PackedRepeatedFields,
+    PackedRepeatedFields(AllowedPakcedType),
 }
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum AllowedPakcedType {
+    Variant(TypeVairant),
+    Bit64(TypeBit64),
+    Bit32(TypeBit32),
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TypeBit32 {
     Fixed32,
