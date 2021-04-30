@@ -17,11 +17,6 @@ enum DecodeError {
     UnexpectedWireDataValueError(u128),
 }
 
-// decode_variants decode base variants
-fn decode_variants_cursor(data: &mut Cursor<&[u8]>) -> Result<u128> {
-    decode_variants(data)
-}
-
 pub(crate) fn decode_variants_slice(data: &[u8]) -> Result<Vec<u128>> {
     let mut data = data;
     let payload_size = decode_variants(&mut data)?;
@@ -70,7 +65,7 @@ fn decode_variants<T: std::io::Read>(data: &mut T) -> Result<u128> {
 // length to decode is first variants
 // this function used by `string`, `embedded messages`
 fn decode_length_delimited(data: &mut Cursor<&[u8]>) -> Result<Vec<u8>> {
-    let length = decode_variants_cursor(data)? as usize;
+    let length = decode_variants(data)? as usize;
     let mut buf = vec![0; length];
     data.read_exact(&mut buf)?;
     Ok(buf)
@@ -91,7 +86,7 @@ fn decode_64bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 8]> {
 
 // decode_repeat decode repeated elements
 fn decode_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>> {
-    let payload_size = decode_variants_cursor(data)?;
+    let payload_size = decode_variants(data)?;
     let start = data.position();
 
     let mut v = Vec::new();
@@ -104,14 +99,14 @@ fn decode_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>> {
         if payload_size < red_size {
             return Err(DecodeError::UnexpectRepeatSizeError(payload_size, red_size))?;
         }
-        let value = decode_variants_cursor(data)?;
+        let value = decode_variants(data)?;
         v.push(value);
     }
 }
 
 // decode_tag decode wire's tag
 fn decode_tag(data: &mut Cursor<&[u8]>) -> Result<(u128, u128)> {
-    let n = decode_variants_cursor(data)?;
+    let n = decode_variants(data)?;
     let wt = n & 7;
     let field_number = n >> 3;
     Ok((field_number, wt))
@@ -120,9 +115,9 @@ fn decode_tag(data: &mut Cursor<&[u8]>) -> Result<(u128, u128)> {
 fn decode_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct> {
     let (field_num, wire_type) = decode_tag(data)?;
     let wt = match wire_type {
-        0 => Ok(WireData::Varint(WireDataVarint::new(
-            decode_variants_cursor(data)?,
-        ))),
+        0 => Ok(WireData::Varint(WireDataVarint::new(decode_variants(
+            data,
+        )?))),
         1 => Ok(WireData::Bit64(decode_64bit(data)?)),
         2 => Ok(WireData::LengthDelimited(WireDataLengthDelimited::new(
             decode_length_delimited(data)?,
@@ -159,7 +154,7 @@ mod tests {
             let bytes: &[u8] = &[0b00000001];
             let mut c = Cursor::new(bytes);
             assert_eq!(c.position(), 0);
-            let x = super::decode_variants_cursor(&mut c).unwrap();
+            let x = super::decode_variants(&mut c).unwrap();
             assert_eq!(x, 1);
             assert_eq!(c.position(), 1);
         }
@@ -167,7 +162,7 @@ mod tests {
             let bytes: &[u8] = &[0b10101100, 0b00000010];
             let mut c = Cursor::new(bytes);
             assert_eq!(c.position(), 0);
-            let x = super::decode_variants_cursor(&mut c).unwrap();
+            let x = super::decode_variants(&mut c).unwrap();
             assert_eq!(x, 300);
             assert_eq!(c.position(), 2);
         }
