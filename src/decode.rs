@@ -154,11 +154,6 @@ mod tests {
     use std::io::{Cursor, Seek, SeekFrom};
 
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-
-    #[test]
     fn test_decode_variants() {
         {
             let bytes: &[u8] = &[0b00000001];
