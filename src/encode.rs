@@ -7,8 +7,14 @@ use std::{
 
 use crate::wire::WireStruct;
 
-fn encode_variants_vec(data: &mut Vec<u8>, input: u128) -> Result<()> {
-    encode_variants(data, input)
+fn encode_repeat<T: std::io::Write>(data: &mut T, input: Vec<u128>) -> Result<()> {
+    let mut tmp = Vec::new();
+    for i in input {
+        encode_variants(&mut tmp, i)?;
+    }
+    encode_variants(data, tmp.len() as u128)?;
+    data.write_all(tmp.as_slice())?;
+    Ok(())
 }
 
 fn encode_variants<T: std::io::Write>(data: &mut T, input: u128) -> Result<()> {
@@ -122,35 +128,32 @@ mod tests {
     }
 
     #[test]
-    fn test_encode_variants_vec() {
+    fn test_encode_repeat() {
         {
             let mut v = Vec::new();
-            encode_variants(&mut v, 1).unwrap();
-            assert_eq!(v, vec![0b00000001]);
+            encode_repeat(&mut v, vec![]).unwrap();
+            assert_eq!(v, vec![]);
         }
         {
-            let mut c = Cursor::new(Vec::new());
-            encode_variants(&mut c, 300).unwrap();
-            // assert_eq!(c.position(), 2);
-
-            let x: Vec<u8> = c.into_inner();
-            assert_eq!(x, vec![0b10101100, 0b00000010]);
+            let mut v = Vec::new();
+            encode_repeat(&mut v, vec![1]).unwrap();
+            assert_eq!(v, vec![0b00000001, 0b00000001]);
         }
         {
-            let mut c = Cursor::new(Vec::new());
-            encode_variants(&mut c, 12323412).unwrap();
-            // assert_eq!(c.position(), 2);
-
-            let x: Vec<u8> = c.into_inner();
-            assert_eq!(x, vec![0b11010100, 0b10010100, 0b11110000, 0b00000101]);
+            let mut v = Vec::new();
+            encode_repeat(&mut v, vec![1, 300]).unwrap();
+            assert_eq!(v, vec![0b00000011, 0b00000001, 0b10101100, 0b00000010]);
         }
         {
-            let mut c = Cursor::new(Vec::new());
-            encode_variants(&mut c, 0).unwrap();
-            // assert_eq!(c.position(), 2);
-
-            let x: Vec<u8> = c.into_inner();
-            assert_eq!(x, vec![]);
+            let mut v = Vec::new();
+            encode_repeat(&mut v, vec![1, 300, 12323412]).unwrap();
+            assert_eq!(
+                v,
+                vec![
+                    0b00000111, 0b00000001, 0b10101100, 0b00000010, 0b11010100, 0b10010100,
+                    0b11110000, 0b00000101
+                ]
+            );
         }
     }
 
