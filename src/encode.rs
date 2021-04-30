@@ -7,7 +7,11 @@ use std::{
 
 use crate::wire::WireStruct;
 
-fn encode_variants_cursor(data: &mut Cursor<Vec<u8>>, input: u128) -> Result<()> {
+fn encode_variants_vec(data: &mut Vec<u8>, input: u128) -> Result<()> {
+    encode_variants(data, input)
+}
+
+fn encode_variants<T: std::io::Write>(data: &mut T, input: u128) -> Result<()> {
     // 事前にbufferを確保すること
     let mut buf: Vec<u8> = Vec::new();
     let mut input = input;
@@ -29,7 +33,7 @@ fn encode_variants_cursor(data: &mut Cursor<Vec<u8>>, input: u128) -> Result<()>
 }
 
 fn encode_length_delimited(data: &mut Cursor<Vec<u8>>, input: Vec<u8>) -> Result<()> {
-    encode_variants_cursor(data, input.len() as u128)?;
+    encode_variants(data, input.len() as u128)?;
     data.write_all(input.as_slice())?;
     Ok(())
 }
@@ -45,7 +49,7 @@ pub fn encode<const BYTE_SIZE: usize>(
 // encode_tag decode wire's tag
 fn encode_tag(data: &mut Cursor<Vec<u8>>, field_number: u128, field_type: u128) -> Result<()> {
     let input = (field_number << 3) + field_type;
-    encode_variants_cursor(data, input)?;
+    encode_variants(data, input)?;
     Ok(())
 }
 
@@ -53,7 +57,7 @@ fn encode_struct(data: &mut Cursor<Vec<u8>>, input: WireStruct) -> Result<()> {
     encode_tag(data, input.field_number(), input.wire_type().type_number())?;
     match input.wire_type() {
         crate::wire::WireData::Varint(v) => {
-            encode_variants_cursor(data, v.value)?;
+            encode_variants(data, v.value)?;
         }
         crate::wire::WireData::Bit64(b) => {
             encode(data, b)?;
@@ -85,7 +89,7 @@ mod tests {
     fn test_encode_variants() {
         {
             let mut c = Cursor::new(Vec::new());
-            encode_variants_cursor(&mut c, 1).unwrap();
+            encode_variants(&mut c, 1).unwrap();
             assert_eq!(c.position(), 1);
 
             let x: Vec<u8> = c.into_inner();
@@ -93,7 +97,7 @@ mod tests {
         }
         {
             let mut c = Cursor::new(Vec::new());
-            encode_variants_cursor(&mut c, 300).unwrap();
+            encode_variants(&mut c, 300).unwrap();
             // assert_eq!(c.position(), 2);
 
             let x: Vec<u8> = c.into_inner();
@@ -101,7 +105,7 @@ mod tests {
         }
         {
             let mut c = Cursor::new(Vec::new());
-            encode_variants_cursor(&mut c, 12323412).unwrap();
+            encode_variants(&mut c, 12323412).unwrap();
             // assert_eq!(c.position(), 2);
 
             let x: Vec<u8> = c.into_inner();
@@ -109,7 +113,40 @@ mod tests {
         }
         {
             let mut c = Cursor::new(Vec::new());
-            encode_variants_cursor(&mut c, 0).unwrap();
+            encode_variants(&mut c, 0).unwrap();
+            // assert_eq!(c.position(), 2);
+
+            let x: Vec<u8> = c.into_inner();
+            assert_eq!(x, vec![]);
+        }
+    }
+
+    #[test]
+    fn test_encode_variants_vec() {
+        {
+            let mut v = Vec::new();
+            encode_variants(&mut v, 1).unwrap();
+            assert_eq!(v, vec![0b00000001]);
+        }
+        {
+            let mut c = Cursor::new(Vec::new());
+            encode_variants(&mut c, 300).unwrap();
+            // assert_eq!(c.position(), 2);
+
+            let x: Vec<u8> = c.into_inner();
+            assert_eq!(x, vec![0b10101100, 0b00000010]);
+        }
+        {
+            let mut c = Cursor::new(Vec::new());
+            encode_variants(&mut c, 12323412).unwrap();
+            // assert_eq!(c.position(), 2);
+
+            let x: Vec<u8> = c.into_inner();
+            assert_eq!(x, vec![0b11010100, 0b10010100, 0b11110000, 0b00000101]);
+        }
+        {
+            let mut c = Cursor::new(Vec::new());
+            encode_variants(&mut c, 0).unwrap();
             // assert_eq!(c.position(), 2);
 
             let x: Vec<u8> = c.into_inner();
@@ -335,7 +372,7 @@ mod tests {
         }
         {
             let mut c = Cursor::new(Vec::new());
-            encode_variants_cursor(&mut c, 12323412).unwrap();
+            encode_variants(&mut c, 12323412).unwrap();
 
             let x: Vec<u8> = c.into_inner();
             println!("{:?}", x)
