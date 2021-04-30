@@ -17,26 +17,6 @@ enum DecodeError {
     UnexpectedWireDataValueError(u128),
 }
 
-pub(crate) fn decode_variants_slice(data: &[u8]) -> Result<Vec<u128>> {
-    let mut data = data;
-    let payload_size = decode_variants(&mut data)?;
-
-    if payload_size != (data.len() as u128) {
-        // error
-        return Err(DecodeError::UnexpectRepeatSizeError(
-            payload_size,
-            data.len() as u128,
-        ))?;
-    }
-    // ここiter()でかける
-    let mut v = Vec::new();
-    while !data.is_empty() {
-        let value = decode_variants(&mut data)?;
-        v.push(value);
-    }
-    Ok(v)
-}
-
 fn decode_variants<T: std::io::Read>(data: &mut T) -> Result<u128> {
     // iterate take_util とかでもできるよ
     let mut sum = 0;
@@ -82,6 +62,26 @@ fn decode_32bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 4]> {
 }
 fn decode_64bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 8]> {
     decode_nbit(data)
+}
+
+pub(crate) fn decode_variants_slice(data: &[u8]) -> Result<Vec<u128>> {
+    let mut data = data;
+    let payload_size = decode_variants(&mut data)?;
+
+    if payload_size != (data.len() as u128) {
+        // error
+        return Err(DecodeError::UnexpectRepeatSizeError(
+            payload_size,
+            data.len() as u128,
+        ))?;
+    }
+    // ここiter()でかける
+    let mut v = Vec::new();
+    while !data.is_empty() {
+        let value = decode_variants(&mut data)?;
+        v.push(value);
+    }
+    Ok(v)
 }
 
 // decode_repeat decode repeated elements
