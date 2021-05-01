@@ -76,6 +76,7 @@ impl<'a> Field<'a> {
         data.iter().map(Field::from_syn).collect()
     }
     fn from_syn(f: &'a syn::Field) -> syn::Result<Self> {
+        // TODO 番号がだぶってないかチェックする
         let attr = Attribute::from_syn(&f.attrs, f)?;
         let ty = &f.ty;
         // match ty {
