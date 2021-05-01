@@ -141,7 +141,7 @@ pub trait Parser<Output>: Sized {
     type Type;
     fn parse(&self, ty: Self::Type) -> Result<Output>;
     // TODO rename
-    fn into_wire_data(input: Output, ty: Self::Type) -> Result<Self>;
+    fn from(input: Output, ty: Self::Type) -> Result<Self>;
 }
 
 impl Parser<String> for WireDataLengthDelimited {
@@ -157,7 +157,7 @@ impl Parser<String> for WireDataLengthDelimited {
         Ok(s)
     }
 
-    fn into_wire_data(input: String, ty: Self::Type) -> Result<Self> {
+    fn from(input: String, ty: Self::Type) -> Result<Self> {
         if !matches!(ty, TypeLengthDelimited::WireString) {
             return Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?}",TypeLengthDelimited::WireString},
@@ -193,7 +193,7 @@ impl<T: VariantToValue> Parser<Vec<T>> for WireDataLengthDelimited {
         }
     }
 
-    fn into_wire_data(input: Vec<T>, ty: Self::Type) -> Result<Self> {
+    fn from(input: Vec<T>, ty: Self::Type) -> Result<Self> {
         match ty {
             TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(tv)) => {
                 let input = input.iter().try_fold(Vec::new(), |mut acc, x| {
@@ -226,7 +226,7 @@ impl<T: Proto> Parser<T> for WireDataLengthDelimited {
         Ok(r)
     }
 
-    fn into_wire_data(input: T, _: Self::Type) -> Result<Self> {
+    fn from(input: T, _: Self::Type) -> Result<Self> {
         Ok(Self {
             value: input.bytes()?,
         })
@@ -239,7 +239,7 @@ impl<T: VariantToValue> Parser<T> for WireDataVarint {
         T::parse(self.value, ty)
     }
 
-    fn into_wire_data(input: T, ty: Self::Type) -> Result<Self> {
+    fn from(input: T, ty: Self::Type) -> Result<Self> {
         Ok(Self {
             value: input.into_variant(ty)?,
         })

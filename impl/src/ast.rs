@@ -168,7 +168,7 @@ impl<'a> Field<'a> {
             return quote! {
                 wire::WireStruct::new(
                     #fieild_num,
-                    WireData::LengthDelimited(Parser::into_wire_data(
+                    WireData::LengthDelimited(Parser::from(
                         self.#filed_indent.clone(),
                         TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                             #wdt,
@@ -181,7 +181,7 @@ impl<'a> Field<'a> {
         quote! {
             WireStruct::new(
                 #fieild_num,
-                #wt(Parser::into_wire_data(self.#filed_indent.clone(), #wdt)?),
+                #wt(Parser::from(self.#filed_indent.clone(), #wdt)?),
             )
         }
     }
