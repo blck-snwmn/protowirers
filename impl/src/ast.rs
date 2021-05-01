@@ -98,7 +98,7 @@ impl<'a> Field<'a> {
         //         Err(syn::Error::new_spanned(&ty, "__TestExhaustive"))?
         //     }
         // }
-        if !attr.def_type.allows_rust_type(ty) {
+        if !attr.allows_rust_type(ty) {
             return Err(syn::Error::new_spanned(
                 &ty,
                 format!(
@@ -332,6 +332,38 @@ impl<'a> Attribute<'a> {
             packed: packed.is_some(),
         })
     }
+
+    fn allows_rust_type(&self, ty: &syn::Type) -> bool {
+        match *ty {
+            syn::Type::Path(ref p) => Some(&p.path),
+            _ => None,
+        }
+        .and_then(|p| {
+            // ident が取れるならそれをもとに型を。そうでない場合、Vecに指定されている型を採用
+            p.get_ident().or_else(|| {
+                p.segments
+                    .iter()
+                    // Vec限定
+                    .find(|x| x.ident == "Vec")
+                    .and_then(|x| match &x.arguments {
+                        syn::PathArguments::AngleBracketed(ab) => Some(ab),
+                        _ => None,
+                    })
+                    .and_then(|abga| {
+                        abga.args.iter().find_map(|ga| match ga {
+                            syn::GenericArgument::Type(t) => Some(t),
+                            _ => None,
+                        })
+                    })
+                    .and_then(|t| match t {
+                        syn::Type::Path(tp) => tp.path.get_ident(),
+                        _ => None,
+                    })
+            })
+        })
+        .map(|i| self.def_type.allows_rust_type(&i.to_string()))
+        .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -352,46 +384,15 @@ impl DefType {
             _ => None,
         }
     }
-    // TODO ここは他のattribute も含めて判断するので、ここで判断しない！
-    fn allows_rust_type(&self, ty: &syn::Type) -> bool {
-        match (&self, ty) {
-            (DefType::Int32, &syn::Type::Path(ref p)) if p.path.is_ident("i32") => true,
-            (DefType::Uint32, &syn::Type::Path(ref p)) if p.path.is_ident("u32") => true,
-            (DefType::Sint64, &syn::Type::Path(ref p)) => {
-                if p.path.is_ident("i64") {
-                    return true;
-                }
-                p.path
-                    .segments
-                    .iter()
-                    .find(|x| x.ident == "Vec")
-                    .and_then(|x| match &x.arguments {
-                        syn::PathArguments::AngleBracketed(ab) => Some(ab),
-                        _ => None,
-                    })
-                    .and_then(|abga| {
-                        abga.args.iter().find_map(|ga| match ga {
-                            syn::GenericArgument::Type(t) => Some(t),
-                            _ => None,
-                        })
-                    })
-                    .map(|t| match t {
-                        syn::Type::Path(tp) => tp.path.is_ident("i64"),
-                        _ => false,
-                    })
-                    .is_some()
-            }
-            (DefType::String, &syn::Type::Path(ref p)) if p.path.is_ident("String") => true,
-            _ => false,
-        }
+    fn allows_rust_type(&self, rust_type: &str) -> bool {
+        let ty = match &self {
+            DefType::Uint32 => "u32",
+            DefType::Int32 => "i32",
+            DefType::Sint64 => "i64",
+            DefType::String => "String",
+        };
+        rust_type == ty
     }
-    // fn to_parse_function(&self) -> proc_macro2::TokenStream {
-    //     match &self {
-    //         DefType::Int32 => quote! {parser::parse_u32},
-    //         DefType::Sint64 => quote! {parser::parse_i64},
-    //         DefType::String => quote! {parser::parse_string},
-    //     }
-    // }
 
     fn to_input_wire_data_type(&self) -> proc_macro2::TokenStream {
         match &self {
