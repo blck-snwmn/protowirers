@@ -376,6 +376,9 @@ pub enum DefType {
     Sint64,
     Bool,
     String,
+    Fixed64,
+    Sfixed64,
+    Double,
 }
 
 impl DefType {
@@ -389,6 +392,9 @@ impl DefType {
             "sint64" => Some(DefType::Sint64),
             "bool" => Some(DefType::Bool),
             "string" => Some(DefType::String),
+            "fixed64" => Some(DefType::Fixed64),
+            "sfixed64" => Some(DefType::Sfixed64),
+            "double" => Some(DefType::Double),
             _ => None,
         }
     }
@@ -402,6 +408,9 @@ impl DefType {
             DefType::Sint64 => "i64",
             DefType::Bool => "bool",
             DefType::String => "String",
+            DefType::Fixed64 => "u64",
+            DefType::Sfixed64 => "i64",
+            DefType::Double => "f64",
         };
         rust_type == ty
     }
@@ -416,6 +425,9 @@ impl DefType {
             DefType::Sint64 => quote! {wire::TypeVairant::Sint64},
             DefType::Bool => quote! {wire::TypeVairant::Bool},
             DefType::String => quote! {wire::TypeLengthDelimited::WireString},
+            DefType::Fixed64 => quote! {wire::TypeBit64::Fixed64},
+            DefType::Sfixed64 => quote! {wire::TypeBit64::Sfixed64},
+            DefType::Double => quote! {wire::TypeBit64::Double},
         }
     }
 
@@ -431,6 +443,9 @@ impl DefType {
                 quote! {wire::WireData::Varint}
             }
             DefType::String => quote! {wire::WireData::LengthDelimited},
+            DefType::Fixed64 | DefType::Sfixed64 | DefType::Double => {
+                quote! {wire::WireData::Bit64}
+            }
         }
     }
 }

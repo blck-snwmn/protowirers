@@ -22,8 +22,19 @@ impl WireStruct {
     pub fn field_number(&self) -> FieldNumber {
         self.field_number
     }
+    // TODO ここは参照を返せば良さそう？clone実装してもよさそう
     pub fn wire_type(&self) -> WireData {
         self.wire_type.clone()
+    }
+    // is_empty は WireStruct の 値がゼロかどうか確認します。
+    // ゼロの場合、encode時に書き出されません
+    pub fn is_empty(&self) -> bool {
+        match &self.wire_type {
+            WireData::Varint(v) => v.value == 0,
+            WireData::Bit64(b) => b.value.iter().all(|v| *v == 0),
+            WireData::LengthDelimited(l) => l.value.is_empty(),
+            WireData::Bit32(b) => b.value.iter().all(|v| *v == 0),
+        }
     }
     pub fn new(field_number: FieldNumber, wire_type: WireData) -> Self {
         WireStruct {
@@ -76,11 +87,11 @@ impl WireStruct {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum WireData {
     Varint(WireDataVarint),
-    Bit64([u8; 8]),
+    Bit64(WireDataBit64),
     LengthDelimited(WireDataLengthDelimited),
     // StartGroup,
     // EndGroup,
-    Bit32([u8; 4]),
+    Bit32(WireDataBit32),
 }
 
 impl WireData {
@@ -140,6 +151,37 @@ impl Display for WireDataLengthDelimited {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WireDataBit64 {
+    pub value: [u8; 8],
+}
+impl WireDataBit64 {
+    pub fn new(v: [u8; 8]) -> Self {
+        // TODO 暫定でWireStringをセット
+        WireDataBit64 { value: v }
+    }
+}
+impl Display for WireDataBit64 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Bit64{{{:?}}}", self.value)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WireDataBit32 {
+    pub value: [u8; 4],
+}
+impl WireDataBit32 {
+    pub fn new(v: [u8; 4]) -> Self {
+        // TODO 暫定でWireStringをセット
+        WireDataBit32 { value: v }
+    }
+}
+impl Display for WireDataBit32 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Bit32{{{:?}}}", self.value)
+    }
+}
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TypeVairant {
     Int32,

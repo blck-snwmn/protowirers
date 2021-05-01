@@ -170,6 +170,82 @@ impl VariantToValue for bool {
     }
 }
 
+pub trait Bit64ToValue: Sized {
+    fn from_bit64(input: [u8; 8], ty: TypeBit64) -> Result<Self>;
+    fn to_bit64(&self, ty: TypeBit64) -> Result<[u8; 8]>;
+}
+
+impl Bit64ToValue for i64 {
+    fn from_bit64(input: [u8; 8], ty: TypeBit64) -> Result<Self> {
+        match ty {
+            TypeBit64::Sfixed64 => Ok(i64::from_le_bytes(input)),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeBit64::Sfixed64},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+
+    fn to_bit64(&self, ty: TypeBit64) -> Result<[u8; 8]> {
+        match ty {
+            TypeBit64::Sfixed64 => Ok(self.to_le_bytes()),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeBit64::Sfixed64},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+}
+
+impl Bit64ToValue for u64 {
+    fn from_bit64(input: [u8; 8], ty: TypeBit64) -> Result<Self> {
+        match ty {
+            TypeBit64::Fixed64 => Ok(u64::from_le_bytes(input)),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeBit64::Fixed64},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+
+    fn to_bit64(&self, ty: TypeBit64) -> Result<[u8; 8]> {
+        match ty {
+            TypeBit64::Fixed64 => Ok(self.to_le_bytes()),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeBit64::Fixed64},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+}
+
+impl Bit64ToValue for f64 {
+    fn from_bit64(input: [u8; 8], ty: TypeBit64) -> Result<Self> {
+        match ty {
+            TypeBit64::Double => Ok(f64::from_le_bytes(input)),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeBit64::Double},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+
+    fn to_bit64(&self, ty: TypeBit64) -> Result<[u8; 8]> {
+        match ty {
+            TypeBit64::Double => Ok(self.to_le_bytes()),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeBit64::Double},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+}
 #[derive(Error, Debug)]
 enum ParseError {
     #[error("unexpected type. got={got}, want={want}")]
@@ -288,6 +364,19 @@ impl<T: VariantToValue> Parser<T> for WireDataVarint {
     fn from(input: T, ty: Self::Type) -> Result<Self> {
         Ok(Self {
             value: input.to_variant(ty)?,
+        })
+    }
+}
+
+impl<T: Bit64ToValue> Parser<T> for WireDataBit64 {
+    type Type = TypeBit64;
+    fn parse(&self, ty: Self::Type) -> Result<T> {
+        T::from_bit64(self.value, ty)
+    }
+
+    fn from(input: T, ty: Self::Type) -> Result<Self> {
+        Ok(Self {
+            value: input.to_bit64(ty)?,
         })
     }
 }
@@ -629,6 +718,104 @@ mod tests {
                 ))
             )
             .is_err(),);
+        }
+    }
+
+    #[test]
+    fn parse_i64_as_bit64() {
+        {
+            assert_eq!(
+                Parser::<i64>::parse(
+                    &WireDataBit64::new([
+                        0b10100101, 0b00000010, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                        0b00000000, 0b00000000,
+                    ]),
+                    TypeBit64::Sfixed64
+                )
+                .unwrap(),
+                677
+            );
+            assert_eq!(
+                Parser::<i64>::parse(
+                    &WireDataBit64::new([
+                        0b01011011, 0b11111101, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
+                        0b11111111, 0b11111111,
+                    ]),
+                    TypeBit64::Sfixed64
+                )
+                .unwrap(),
+                -677
+            );
+        }
+        {
+            let x: WireDataBit64 = Parser::<i64>::from(677, TypeBit64::Sfixed64).unwrap();
+            assert_eq!(
+                x,
+                WireDataBit64::new([
+                    0b10100101, 0b00000010, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                    0b00000000, 0b00000000,
+                ]),
+            );
+            let x: WireDataBit64 = Parser::<i64>::from(-677, TypeBit64::Sfixed64).unwrap();
+            assert_eq!(
+                x,
+                WireDataBit64::new([
+                    0b01011011, 0b11111101, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
+                    0b11111111, 0b11111111,
+                ]),
+            );
+        }
+    }
+
+    #[test]
+    fn parse_u64_as_bit64() {
+        {
+            assert_eq!(
+                Parser::<u64>::parse(
+                    &WireDataBit64::new([
+                        0b10111011, 0b00000001, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                        0b00000000, 0b00000000,
+                    ]),
+                    TypeBit64::Fixed64
+                )
+                .unwrap(),
+                443
+            );
+        }
+        {
+            let x: WireDataBit64 = Parser::<u64>::from(443, TypeBit64::Fixed64).unwrap();
+            assert_eq!(
+                x,
+                WireDataBit64::new([
+                    0b10111011, 0b00000001, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                    0b00000000, 0b00000000,
+                ]),
+            );
+        }
+    }
+    #[test]
+    fn parse_f64_as_bit64() {
+        let error_margin = f64::EPSILON;
+        {
+            let r = Parser::<f64>::parse(
+                &WireDataBit64::new([
+                    0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                    0b11110100, 0b00111111,
+                ]),
+                TypeBit64::Double,
+            )
+            .unwrap();
+            assert!((r - 1.25f64).abs() < error_margin);
+        }
+        {
+            let x: WireDataBit64 = Parser::<f64>::from(1.25f64, TypeBit64::Double).unwrap();
+            assert_eq!(
+                x,
+                WireDataBit64::new([
+                    0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+                    0b11110100, 0b00111111,
+                ])
+            );
         }
     }
 }

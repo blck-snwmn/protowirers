@@ -89,13 +89,13 @@ fn decode_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct> {
         0 => Ok(WireData::Varint(WireDataVarint::new(decode_variants(
             data,
         )?))),
-        1 => Ok(WireData::Bit64(decode_64bit(data)?)),
+        1 => Ok(WireData::Bit64(WireDataBit64::new(decode_64bit(data)?))),
         2 => Ok(WireData::LengthDelimited(WireDataLengthDelimited::new(
             decode_length_delimited(data)?,
         ))),
         // 3=>WireData::StartGroup,
         // 4=>WireData::EndGroup,
-        5 => Ok(WireData::Bit32(decode_32bit(data)?)),
+        5 => Ok(WireData::Bit32(WireDataBit32::new(decode_32bit(data)?))),
         _ => Err(DecodeError::UnexpectedWireDataValue(wire_type)),
     }?;
     Ok(WireStruct::new(field_num, wt))
@@ -249,7 +249,9 @@ mod tests {
 
             let expected = WireStruct::new(
                 8,
-                WireData::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+                WireData::Bit32(WireDataBit32::new([
+                    0b00000000, 0b00000000, 0b00000000, 0b01000000,
+                ])),
             );
             assert_eq!(got, expected);
             assert_eq!(c.position(), 5);
@@ -267,10 +269,10 @@ mod tests {
 
             let expected = WireStruct::new(
                 1,
-                WireData::Bit64([
+                WireData::Bit64(WireDataBit64::new([
                     0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
                     0b11110000, 0b00111111,
-                ]),
+                ])),
             );
             assert_eq!(got, expected);
             assert_eq!(c.position(), 9);
@@ -322,7 +324,9 @@ mod tests {
 
             let expected = vec![WireStruct::new(
                 8,
-                WireData::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+                WireData::Bit32(WireDataBit32::new([
+                    0b00000000, 0b00000000, 0b00000000, 0b01000000,
+                ])),
             )];
             assert_eq!(got, expected);
             assert_eq!(c.position(), 5);
@@ -341,14 +345,16 @@ mod tests {
             let expected = vec![
                 WireStruct::new(
                     8,
-                    WireData::Bit32([0b00000000, 0b00000000, 0b00000000, 0b01000000]),
+                    WireData::Bit32(WireDataBit32::new([
+                        0b00000000, 0b00000000, 0b00000000, 0b01000000,
+                    ])),
                 ),
                 WireStruct::new(
                     1,
-                    WireData::Bit64([
+                    WireData::Bit64(WireDataBit64::new([
                         0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
                         0b11110000, 0b00111111,
-                    ]),
+                    ])),
                 ),
             ];
             assert_eq!(got, expected);
