@@ -1,11 +1,12 @@
-use crate::zigzag;
 use crate::{decode::decode_variants_slice, wire::*};
+use crate::{encode::encode_repeat, zigzag};
 use anyhow::Result;
 use std::convert::TryFrom;
 use thiserror::Error;
 
 pub trait VariantToValue: Sized {
     fn parse(input: u128, ty: TypeVairant) -> Result<Self>;
+    fn into_variant(&self, ty: TypeVairant) -> Result<u128>;
 }
 
 impl VariantToValue for i32 {
@@ -25,6 +26,17 @@ impl VariantToValue for i32 {
                 let u = TryFrom::try_from(decoded)?;
                 Ok(u)
             }
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?} or {:?}",TypeVairant::Int32, TypeVairant::Sint32},
+                got: format! {"{:?}", ty},
+            })?,
+        }
+    }
+
+    fn into_variant(&self, ty: TypeVairant) -> Result<u128> {
+        match ty {
+            TypeVairant::Int32 => Ok(*self as u128),
+            TypeVairant::Sint32 => Ok(zigzag::encode(*self) as u128),
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?} or {:?}",TypeVairant::Int32, TypeVairant::Sint32},
                 got: format! {"{:?}", ty},
@@ -56,6 +68,17 @@ impl VariantToValue for i64 {
             })?,
         }
     }
+
+    fn into_variant(&self, ty: TypeVairant) -> Result<u128> {
+        match ty {
+            TypeVairant::Int64 => Ok(*self as u128),
+            TypeVairant::Sint64 => Ok(zigzag::encode(*self) as u128),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?} or {:?}",TypeVairant::Int64, TypeVairant::Sint64},
+                got: format! {"{:?}", ty},
+            })?,
+        }
+    }
 }
 
 impl VariantToValue for u32 {
@@ -65,6 +88,16 @@ impl VariantToValue for u32 {
                 let u = TryFrom::try_from(input)?;
                 Ok(u)
             }
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeVairant::Uint32},
+                got: format! {"{:?}", ty},
+            })?,
+        }
+    }
+
+    fn into_variant(&self, ty: TypeVairant) -> Result<u128> {
+        match ty {
+            TypeVairant::Uint32 => Ok(*self as u128),
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?}",TypeVairant::Uint32},
                 got: format! {"{:?}", ty},
@@ -86,6 +119,16 @@ impl VariantToValue for u64 {
             })?,
         }
     }
+
+    fn into_variant(&self, ty: TypeVairant) -> Result<u128> {
+        match ty {
+            TypeVairant::Uint64 => Ok(*self as u128),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeVairant::Uint64},
+                got: format! {"{:?}", ty},
+            })?,
+        }
+    }
 }
 
 #[derive(Error, Debug)]
@@ -94,9 +137,11 @@ enum ParseError {
     UnexpectTypeError { want: String, got: String },
 }
 
-pub trait Parser<Output> {
+pub trait Parser<Output>: Sized {
     type Type;
     fn parse(&self, ty: Self::Type) -> Result<Output>;
+    // TODO rename
+    fn into_wire_data(input: Output, ty: Self::Type) -> Result<Self>;
 }
 
 impl Parser<String> for WireDataLengthDelimited {
@@ -110,6 +155,18 @@ impl Parser<String> for WireDataLengthDelimited {
         }
         let s = String::from_utf8(self.value.clone())?;
         Ok(s)
+    }
+
+    fn into_wire_data(input: String, ty: Self::Type) -> Result<Self> {
+        if !matches!(ty, TypeLengthDelimited::WireString) {
+            return Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeLengthDelimited::WireString},
+                got: format! {"{:?}", ty},
+            })?;
+        }
+        Ok(Self {
+            value: (input.into()),
+        })
     }
 }
 
@@ -135,6 +192,26 @@ impl<T: VariantToValue> Parser<Vec<T>> for WireDataLengthDelimited {
             })?,
         }
     }
+
+    fn into_wire_data(input: Vec<T>, ty: Self::Type) -> Result<Self> {
+        match ty {
+            TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(tv)) => {
+                let input = input.iter().try_fold(Vec::new(), |mut acc, x| {
+                    x.into_variant(tv).map(|x| {
+                        acc.push(x);
+                        acc
+                    })
+                })?;
+                let mut v = Vec::new();
+                encode_repeat(&mut v, input)?;
+                Ok(Self { value: v })
+            }
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"},
+                got: format! {"{:?}", ty},
+            })?,
+        }
+    }
 }
 impl<T: Proto> Parser<T> for WireDataLengthDelimited {
     type Type = TypeLengthDelimited;
@@ -148,6 +225,12 @@ impl<T: Proto> Parser<T> for WireDataLengthDelimited {
         let r = T::parse(self.value.as_slice())?;
         Ok(r)
     }
+
+    fn into_wire_data(input: T, _: Self::Type) -> Result<Self> {
+        Ok(Self {
+            value: input.bytes()?,
+        })
+    }
 }
 
 impl<T: VariantToValue> Parser<T> for WireDataVarint {
@@ -155,12 +238,16 @@ impl<T: VariantToValue> Parser<T> for WireDataVarint {
     fn parse(&self, ty: Self::Type) -> Result<T> {
         T::parse(self.value, ty)
     }
+
+    fn into_wire_data(input: T, ty: Self::Type) -> Result<Self> {
+        Ok(Self {
+            value: input.into_variant(ty)?,
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryInto;
-
     use super::*;
     #[test]
     fn parse_u32() {
@@ -326,8 +413,8 @@ mod tests {
             assert_eq!(
                 Parser::<Vec<i32>>::parse(
                     &WireDataLengthDelimited::new(vec![
-                        0b00001011, 0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100,
-                        0b00000101, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00001111,
+                        0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100, 0b00000101,
+                        0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00001111,
                     ]),
                     TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                         TypeVairant::Int32
@@ -338,9 +425,8 @@ mod tests {
             );
             assert!(Parser::<Vec<i32>>::parse(
                 &WireDataLengthDelimited::new(vec![
-                    0b00001011, 0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100,
-                    0b00000101, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
-                    0b00001111,
+                    0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100, 0b00000101,
+                    0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00001111,
                 ]),
                 TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                     TypeVairant::Int32
@@ -353,9 +439,9 @@ mod tests {
             assert_eq!(
                 Parser::<Vec<i64>>::parse(
                     &WireDataLengthDelimited::new(vec![
-                        0b00010000, 0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100,
-                        0b00000101, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
-                        0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00000001,
+                        0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100, 0b00000101,
+                        0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
+                        0b11111111, 0b11111111, 0b11111111, 0b00000001,
                     ]),
                     TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                         TypeVairant::Int64
@@ -366,9 +452,9 @@ mod tests {
             );
             assert!(Parser::<Vec<i64>>::parse(
                 &WireDataLengthDelimited::new(vec![
-                    0b00010000, 0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100,
-                    0b00000101, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
-                    0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00000001,
+                    0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100, 0b00000101,
+                    0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
+                    0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00000001,
                 ]),
                 TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                     TypeVairant::Int64
@@ -380,8 +466,7 @@ mod tests {
             assert_eq!(
                 Parser::<Vec<u32>>::parse(
                     &WireDataLengthDelimited::new(vec![
-                        0b00000110, 0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100,
-                        0b00000101,
+                        0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100, 0b00000101,
                     ]),
                     TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                         TypeVairant::Uint32
@@ -392,8 +477,7 @@ mod tests {
             );
             assert!(Parser::<Vec<u32>>::parse(
                 &WireDataLengthDelimited::new(vec![
-                    0b00000110, 0b10000001, 0b10000010, 0b11101000, 0b10000111, 0b10000100,
-                    0b10000101,
+                    0b10000001, 0b10000010, 0b11101000, 0b10000111, 0b10000100, 0b10000101,
                 ]),
                 TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                     TypeVairant::Uint32
@@ -406,8 +490,7 @@ mod tests {
             assert_eq!(
                 Parser::<Vec<u64>>::parse(
                     &WireDataLengthDelimited::new(vec![
-                        0b00000110, 0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100,
-                        0b00000101,
+                        0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100, 0b00000101,
                     ]),
                     TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                         TypeVairant::Uint64
@@ -418,9 +501,9 @@ mod tests {
             );
             assert!(Parser::<Vec<u64>>::parse(
                 &WireDataLengthDelimited::new(vec![
-                    0b00010000, 0b10000001, 0b10000001, 0b10000001, 0b10000001, 0b10000001,
-                    0b10000001, 0b10000001, 0b10000001, 0b10000001, 0b00000010, 0b11101000,
-                    0b00000111, 0b00000100, 0b00000101,
+                    0b10000001, 0b10000001, 0b10000001, 0b10000001, 0b10000001, 0b10000001,
+                    0b10000001, 0b10000001, 0b10000001, 0b00000010, 0b11101000, 0b00000111,
+                    0b00000100, 0b00000101,
                 ]),
                 TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                     TypeVairant::Uint64
@@ -433,10 +516,10 @@ mod tests {
             assert_eq!(
                 Parser::<Vec<i64>>::parse(
                     &WireDataLengthDelimited::new(vec![
-                        0b00010110, 0b11010000, 0b00001111, 0b11111110, 0b11111111, 0b11111111,
+                        0b11010000, 0b00001111, 0b11111110, 0b11111111, 0b11111111, 0b11111111,
+                        0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00000001,
                         0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
-                        0b00000001, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
-                        0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00000001,
+                        0b11111111, 0b11111111, 0b11111111, 0b00000001,
                     ]),
                     TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                         TypeVairant::Sint64
@@ -447,10 +530,10 @@ mod tests {
             );
             assert!(Parser::<Vec<i64>>::parse(
                 &WireDataLengthDelimited::new(vec![
-                    0b00010111, 0b11010000, 0b00001111, 0b11111110, 0b11111111, 0b11111111,
-                    0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
-                    0b00000001, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
+                    0b11010000, 0b00001111, 0b11111110, 0b11111111, 0b11111111, 0b11111111,
                     0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00000001,
+                    0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
+                    0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00000001,
                 ]),
                 TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                     TypeVairant::Sint64
@@ -463,9 +546,8 @@ mod tests {
             assert_eq!(
                 Parser::<Vec<i32>>::parse(
                     &WireDataLengthDelimited::new(vec![
-                        0b00001100, 0b11010000, 0b00001111, 0b11111110, 0b11111111, 0b11111111,
-                        0b11111111, 0b00001111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
-                        0b00001111,
+                        0b11010000, 0b00001111, 0b11111110, 0b11111111, 0b11111111, 0b11111111,
+                        0b00001111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00001111,
                     ]),
                     TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                         TypeVairant::Sint32
@@ -476,9 +558,9 @@ mod tests {
             );
             assert!(Parser::<Vec<i32>>::parse(
                 &WireDataLengthDelimited::new(vec![
-                    0b00001101, 0b11010000, 0b00001111, 0b11111110, 0b11111111, 0b11111111,
-                    0b11111111, 0b00001111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
-                    0b11111111, 0b00001111,
+                    0b11010000, 0b00001111, 0b11111110, 0b11111111, 0b11111111, 0b11111111,
+                    0b00001111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
+                    0b00001111,
                 ]),
                 TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                     TypeVairant::Sint32

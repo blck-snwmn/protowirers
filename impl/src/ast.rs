@@ -161,10 +161,28 @@ impl<'a> Field<'a> {
         let filed_indent = &self.original.ident;
         let a = &self.attr;
         let fieild_num = a.filed_num as u128;
-        let gen_fn = a.def_type.to_gen_function();
+        let wt = a.def_type.to_corresponding_wire_type();
+        let wdt = a.def_type.to_input_wire_data_type();
+        let _ = a.def_type.to_gen_function();
+        if self.attr.repeated && self.attr.packed {
+            return quote! {
+                wire::WireStruct::new(
+                    #fieild_num,
+                    WireData::LengthDelimited(Parser::into_wire_data(
+                        self.#filed_indent.clone(),
+                        TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
+                            #wdt,
+                        )),
+                    )?),
+                )
+            };
+        }
         // TODO 暫定として一律cloneするが、要検討。
         quote! {
-            #gen_fn(#fieild_num, self.#filed_indent.clone())
+            WireStruct::new(
+                #fieild_num,
+                #wt(Parser::into_wire_data(self.#filed_indent.clone(), #wdt)?),
+            )
         }
     }
 }
@@ -384,7 +402,6 @@ impl DefType {
             DefType::String => quote! {wire::TypeLengthDelimited::WireString},
         }
     }
-    #[allow(dead_code)]
     fn to_gen_function(&self) -> proc_macro2::TokenStream {
         match &self {
             DefType::Int32 => quote! {wire::WireStruct::from_u32},

@@ -66,42 +66,12 @@ fn decode_64bit(data: &mut Cursor<&[u8]>) -> Result<[u8; 8]> {
 
 pub(crate) fn decode_variants_slice(data: &[u8]) -> Result<Vec<u128>> {
     let mut data = data;
-    let payload_size = decode_variants(&mut data)?;
-
-    if payload_size != (data.len() as u128) {
-        // error
-        return Err(DecodeError::UnexpectRepeatSizeError(
-            payload_size,
-            data.len() as u128,
-        ))?;
-    }
-    // ここiter()でかける
     let mut v = Vec::new();
     while !data.is_empty() {
         let value = decode_variants(&mut data)?;
         v.push(value);
     }
     Ok(v)
-}
-
-// decode_repeat decode repeated elements
-fn decode_repeat(data: &mut Cursor<&[u8]>) -> Result<Vec<u128>> {
-    let payload_size = decode_variants(data)?;
-    let start = data.position();
-
-    let mut v = Vec::new();
-    loop {
-        let now_position = data.position();
-        let red_size = (now_position - start) as u128;
-        if payload_size == red_size {
-            return Ok(v);
-        }
-        if payload_size < red_size {
-            return Err(DecodeError::UnexpectRepeatSizeError(payload_size, red_size))?;
-        }
-        let value = decode_variants(data)?;
-        v.push(value);
-    }
 }
 
 // decode_tag decode wire's tag
@@ -222,30 +192,19 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_repeat() {
-        {
-            let bytes: &[u8] = &[
-                0b00000110, 0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100, 0b00000101,
-            ];
-            let mut c = Cursor::new(bytes);
-
-            assert_eq!(c.position(), 0);
-
-            let got = decode_repeat(&mut c).unwrap();
-
-            assert_eq!(got, vec![1, 2, 1000, 4, 5]);
-            assert_eq!(c.position(), 7);
-        }
-    }
-
-    #[test]
     fn test_decode_variants_slice() {
         {
             let bytes = &[
-                0b00000110, 0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100, 0b00000101,
+                0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100, 0b00000101,
             ];
             let got = decode_variants_slice(bytes).unwrap();
             assert_eq!(got, vec![1, 2, 1000, 4, 5]);
+        }
+        {
+            let bytes = &[
+                0b10000000, 0b10000100, 0b10101111, 0b01011111, 0b00000100, 0b10000110,
+            ];
+            assert!(decode_variants_slice(bytes).is_err());
         }
     }
 

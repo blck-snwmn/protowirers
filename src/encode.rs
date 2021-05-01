@@ -7,16 +7,6 @@ use std::{
 
 use crate::wire::WireStruct;
 
-fn encode_repeat<T: std::io::Write>(data: &mut T, input: Vec<u128>) -> Result<()> {
-    let mut tmp = Vec::new();
-    for i in input {
-        encode_variants(&mut tmp, i)?;
-    }
-    encode_variants(data, tmp.len() as u128)?;
-    data.write_all(tmp.as_slice())?;
-    Ok(())
-}
-
 fn encode_variants<T: std::io::Write>(data: &mut T, input: u128) -> Result<()> {
     // 事前にbufferを確保すること
     let mut buf: Vec<u8> = Vec::new();
@@ -35,6 +25,16 @@ fn encode_variants<T: std::io::Write>(data: &mut T, input: u128) -> Result<()> {
         buf.push(x);
     }
     data.write_all(buf.as_slice())?;
+    Ok(())
+}
+
+pub(crate) fn encode_repeat<T: std::io::Write>(data: &mut T, input: Vec<u128>) -> Result<()> {
+    let mut tmp = Vec::new();
+    for i in input {
+        encode_variants(&mut tmp, i)?;
+    }
+    encode_variants(data, tmp.len() as u128)?;
+    data.write_all(tmp.as_slice())?;
     Ok(())
 }
 
