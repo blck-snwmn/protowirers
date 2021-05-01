@@ -6,7 +6,7 @@ use thiserror::Error;
 
 pub trait VariantToValue: Sized {
     fn parse(input: u128, ty: TypeVairant) -> Result<Self>;
-    fn into_variant(&self, ty: TypeVairant) -> Result<u128>;
+    fn to_variant(&self, ty: TypeVairant) -> Result<u128>;
 }
 
 impl VariantToValue for i32 {
@@ -29,18 +29,20 @@ impl VariantToValue for i32 {
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?} or {:?}",TypeVairant::Int32, TypeVairant::Sint32},
                 got: format! {"{:?}", ty},
-            })?,
+            }
+            .into()),
         }
     }
 
-    fn into_variant(&self, ty: TypeVairant) -> Result<u128> {
+    fn to_variant(&self, ty: TypeVairant) -> Result<u128> {
         match ty {
             TypeVairant::Int32 => Ok(*self as u128),
             TypeVairant::Sint32 => Ok(zigzag::encode(*self) as u128),
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?} or {:?}",TypeVairant::Int32, TypeVairant::Sint32},
                 got: format! {"{:?}", ty},
-            })?,
+            }
+            .into()),
         }
     }
 }
@@ -65,18 +67,20 @@ impl VariantToValue for i64 {
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?} or {:?}",TypeVairant::Int64, TypeVairant::Sint64},
                 got: format! {"{:?}", ty},
-            })?,
+            }
+            .into()),
         }
     }
 
-    fn into_variant(&self, ty: TypeVairant) -> Result<u128> {
+    fn to_variant(&self, ty: TypeVairant) -> Result<u128> {
         match ty {
             TypeVairant::Int64 => Ok(*self as u128),
             TypeVairant::Sint64 => Ok(zigzag::encode(*self) as u128),
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?} or {:?}",TypeVairant::Int64, TypeVairant::Sint64},
                 got: format! {"{:?}", ty},
-            })?,
+            }
+            .into()),
         }
     }
 }
@@ -91,17 +95,19 @@ impl VariantToValue for u32 {
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?}",TypeVairant::Uint32},
                 got: format! {"{:?}", ty},
-            })?,
+            }
+            .into()),
         }
     }
 
-    fn into_variant(&self, ty: TypeVairant) -> Result<u128> {
+    fn to_variant(&self, ty: TypeVairant) -> Result<u128> {
         match ty {
             TypeVairant::Uint32 => Ok(*self as u128),
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?}",TypeVairant::Uint32},
                 got: format! {"{:?}", ty},
-            })?,
+            }
+            .into()),
         }
     }
 }
@@ -116,17 +122,19 @@ impl VariantToValue for u64 {
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?}",TypeVairant::Uint64},
                 got: format! {"{:?}", ty},
-            })?,
+            }
+            .into()),
         }
     }
 
-    fn into_variant(&self, ty: TypeVairant) -> Result<u128> {
+    fn to_variant(&self, ty: TypeVairant) -> Result<u128> {
         match ty {
             TypeVairant::Uint64 => Ok(*self as u128),
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?}",TypeVairant::Uint64},
                 got: format! {"{:?}", ty},
-            })?,
+            }
+            .into()),
         }
     }
 }
@@ -151,7 +159,8 @@ impl Parser<String> for WireDataLengthDelimited {
             return Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?}",TypeLengthDelimited::WireString},
                 got: format! {"{:?}", ty},
-            })?;
+            }
+            .into());
         }
         let s = String::from_utf8(self.value.clone())?;
         Ok(s)
@@ -162,7 +171,8 @@ impl Parser<String> for WireDataLengthDelimited {
             return Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?}",TypeLengthDelimited::WireString},
                 got: format! {"{:?}", ty},
-            })?;
+            }
+            .into());
         }
         Ok(Self {
             value: (input.into()),
@@ -187,9 +197,11 @@ impl<T: VariantToValue> Parser<Vec<T>> for WireDataLengthDelimited {
                 Ok(x)
             }
             _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"},
+                want: "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
+                    .to_string(),
                 got: format! {"{:?}", ty},
-            })?,
+            }
+            .into()),
         }
     }
 
@@ -197,7 +209,7 @@ impl<T: VariantToValue> Parser<Vec<T>> for WireDataLengthDelimited {
         match ty {
             TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(tv)) => {
                 let input = input.iter().try_fold(Vec::new(), |mut acc, x| {
-                    x.into_variant(tv).map(|x| {
+                    x.to_variant(tv).map(|x| {
                         acc.push(x);
                         acc
                     })
@@ -207,9 +219,11 @@ impl<T: VariantToValue> Parser<Vec<T>> for WireDataLengthDelimited {
                 Ok(Self { value: v })
             }
             _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"},
+                want: "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
+                    .to_string(),
                 got: format! {"{:?}", ty},
-            })?,
+            }
+            .into()),
         }
     }
 }
@@ -220,7 +234,8 @@ impl<T: Proto> Parser<T> for WireDataLengthDelimited {
             return Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?}", TypeLengthDelimited::EmbeddedMessages},
                 got: format! {"{:?}", ty},
-            })?;
+            }
+            .into());
         }
         let r = T::parse(self.value.as_slice())?;
         Ok(r)
@@ -241,7 +256,7 @@ impl<T: VariantToValue> Parser<T> for WireDataVarint {
 
     fn from(input: T, ty: Self::Type) -> Result<Self> {
         Ok(Self {
-            value: input.into_variant(ty)?,
+            value: input.to_variant(ty)?,
         })
     }
 }
