@@ -5,16 +5,16 @@ use std::convert::TryFrom;
 use thiserror::Error;
 
 pub trait VariantToValue: Sized {
-    fn parse(input: u128, ty: TypeVairant) -> Result<Self>;
+    fn from_valint(input: u128, ty: TypeVairant) -> Result<Self>;
     fn to_variant(&self, ty: TypeVairant) -> Result<u128>;
 }
 
 impl VariantToValue for i32 {
-    fn parse(input: u128, ty: TypeVairant) -> Result<Self> {
+    fn from_valint(input: u128, ty: TypeVairant) -> Result<Self> {
         match ty {
             TypeVairant::Int32 => {
                 // マイナス値の場合、i32 であっても i64 と同様のバイト数を消費する必要があるので、i64として処理させる
-                let result = i64::parse(input, TypeVairant::Int64)?;
+                let result = i64::from_valint(input, TypeVairant::Int64)?;
                 let u = TryFrom::try_from(result)?;
                 Ok(u)
             }
@@ -48,7 +48,7 @@ impl VariantToValue for i32 {
 }
 
 impl VariantToValue for i64 {
-    fn parse(input: u128, ty: TypeVairant) -> Result<Self> {
+    fn from_valint(input: u128, ty: TypeVairant) -> Result<Self> {
         match ty {
             TypeVairant::Int64 => {
                 if input > u64::MAX as u128 {
@@ -87,7 +87,7 @@ impl VariantToValue for i64 {
 }
 
 impl VariantToValue for u32 {
-    fn parse(input: u128, ty: TypeVairant) -> Result<Self> {
+    fn from_valint(input: u128, ty: TypeVairant) -> Result<Self> {
         match ty {
             TypeVairant::Uint32 => {
                 let u = TryFrom::try_from(input)?;
@@ -114,7 +114,7 @@ impl VariantToValue for u32 {
 }
 
 impl VariantToValue for u64 {
-    fn parse(input: u128, ty: TypeVairant) -> Result<Self> {
+    fn from_valint(input: u128, ty: TypeVairant) -> Result<Self> {
         match ty {
             TypeVairant::Uint64 => {
                 let u = TryFrom::try_from(input)?;
@@ -141,7 +141,7 @@ impl VariantToValue for u64 {
 }
 
 impl VariantToValue for bool {
-    fn parse(input: u128, ty: TypeVairant) -> Result<Self> {
+    fn from_valint(input: u128, ty: TypeVairant) -> Result<Self> {
         match ty {
             TypeVairant::Bool => Ok(input != 0),
             _ => Err(ParseError::UnexpectTypeError {
@@ -220,7 +220,7 @@ impl<T: VariantToValue> Parser<Vec<T>> for WireDataLengthDelimited {
                 let x = x
                     .iter()
                     .try_fold(Vec::with_capacity(x.len()), |mut acc, xx| {
-                        T::parse(*xx, v).map(|x| {
+                        T::from_valint(*xx, v).map(|x| {
                             acc.push(x);
                             acc
                         })
@@ -282,7 +282,7 @@ impl<T: Proto> Parser<T> for WireDataLengthDelimited {
 impl<T: VariantToValue> Parser<T> for WireDataVarint {
     type Type = TypeVairant;
     fn parse(&self, ty: Self::Type) -> Result<T> {
-        T::parse(self.value, ty)
+        T::from_valint(self.value, ty)
     }
 
     fn from(input: T, ty: Self::Type) -> Result<Self> {
