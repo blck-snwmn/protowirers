@@ -17,11 +17,16 @@ fn test_mapping() {
         s: u32,
         #[def(field_num = 2, def_type = "sint64")]
         x: i64,
+        #[def(field_num = 3, def_type = "bool")]
+        y: bool,
     }
-    let bytes: &[u8] = &[0b00001000, 0b00000010, 0b00010000, 0b00010011];
+    let bytes: &[u8] = &[
+        0b00001000, 0b00000010, 0b00010000, 0b00010011, 0b00011000, 0b00000001,
+    ];
     let x = Sample::parse(bytes).unwrap();
     assert_eq!(x.s, 2);
     assert_eq!(x.x, -10);
+    assert!(x.y);
     // let x = x.bytes().unwrap();
     // assert_eq!(x, vec![0b00001000, 0b00000010, 0b00010000, 0b00010011]);
 }

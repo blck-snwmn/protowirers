@@ -160,7 +160,6 @@ impl<'a> Field<'a> {
         let fieild_num = a.filed_num as u128;
         let wt = a.def_type.to_corresponding_wire_type();
         let wdt = a.def_type.to_input_wire_data_type();
-        let _ = a.def_type.to_gen_function();
         if self.attr.repeated && self.attr.packed {
             return quote! {
                 wire::WireStruct::new(
@@ -371,6 +370,7 @@ pub enum DefType {
     Uint32,
     Int32,
     Sint64,
+    Bool,
     String,
 }
 
@@ -380,6 +380,7 @@ impl DefType {
             "int32" => Some(DefType::Int32),
             "uint32" => Some(DefType::Uint32),
             "sint64" => Some(DefType::Sint64),
+            "bool" => Some(DefType::Bool),
             "string" => Some(DefType::String),
             _ => None,
         }
@@ -389,6 +390,7 @@ impl DefType {
             DefType::Uint32 => "u32",
             DefType::Int32 => "i32",
             DefType::Sint64 => "i64",
+            DefType::Bool => "bool",
             DefType::String => "String",
         };
         rust_type == ty
@@ -399,22 +401,17 @@ impl DefType {
             DefType::Int32 => quote! {wire::TypeVairant::Int32},
             DefType::Uint32 => quote! {wire::TypeVairant::Uint32},
             DefType::Sint64 => quote! {wire::TypeVairant::Sint64},
+            DefType::Bool => quote! {wire::TypeVairant::Bool},
             DefType::String => quote! {wire::TypeLengthDelimited::WireString},
         }
     }
-    fn to_gen_function(&self) -> proc_macro2::TokenStream {
-        match &self {
-            DefType::Int32 => quote! {wire::WireStruct::from_u32},
-            DefType::Uint32 => quote! {wire::WireStruct::from_u32},
-            DefType::Sint64 => quote! {wire::WireStruct::from_i64},
-            DefType::String => quote! {wire::WireStruct::from_string},
-        }
-    }
+
     fn to_corresponding_wire_type(&self) -> proc_macro2::TokenStream {
         match &self {
             DefType::Int32 => quote! {wire::WireData::Varint},
             DefType::Uint32 => quote! {wire::WireData::Varint},
             DefType::Sint64 => quote! {wire::WireData::Varint},
+            DefType::Bool => quote! {wire::WireData::Varint},
             DefType::String => quote! {wire::WireData::LengthDelimited},
         }
     }

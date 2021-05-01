@@ -139,6 +139,36 @@ impl VariantToValue for u64 {
     }
 }
 
+impl VariantToValue for bool {
+    fn parse(input: u128, ty: TypeVairant) -> Result<Self> {
+        match ty {
+            TypeVairant::Bool => Ok(input != 0),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeVairant::Bool},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+
+    fn to_variant(&self, ty: TypeVairant) -> Result<u128> {
+        match ty {
+            TypeVairant::Bool => {
+                if *self {
+                    Ok(1)
+                } else {
+                    Ok(0)
+                }
+            }
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeVairant::Bool},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+}
+
 #[derive(Error, Debug)]
 enum ParseError {
     #[error("unexpected type. got={got}, want={want}")]
@@ -394,6 +424,21 @@ mod tests {
             Parser::<i64>::parse(&WireDataVarint::new(2), TypeVairant::Sint64).unwrap(),
             1
         );
+    }
+
+    #[test]
+    fn parse_bool() {
+        assert!(
+            Parser::<bool>::parse(&WireDataVarint::new(u128::MAX), TypeVairant::Sint64).is_err()
+        );
+        assert!(Parser::<i64>::parse(
+            &WireDataVarint::new((u64::MAX as u128) + 1),
+            TypeVairant::Bool
+        )
+        .is_err());
+        assert!(!Parser::<bool>::parse(&WireDataVarint::new(0), TypeVairant::Bool).unwrap());
+        assert!(Parser::<bool>::parse(&WireDataVarint::new(1), TypeVairant::Bool).unwrap());
+        assert!(Parser::<bool>::parse(&WireDataVarint::new(2), TypeVairant::Bool).unwrap());
     }
 
     #[test]
