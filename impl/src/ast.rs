@@ -368,8 +368,11 @@ impl<'a> Attribute<'a> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum DefType {
-    Uint32,
     Int32,
+    Int64,
+    Uint32,
+    Uint64,
+    Sint32,
     Sint64,
     Bool,
     String,
@@ -379,7 +382,10 @@ impl DefType {
     fn new(s: String) -> Option<Self> {
         match s.as_ref() {
             "int32" => Some(DefType::Int32),
+            "int64" => Some(DefType::Int64),
             "uint32" => Some(DefType::Uint32),
+            "uint64" => Some(DefType::Uint64),
+            "sint32" => Some(DefType::Sint32),
             "sint64" => Some(DefType::Sint64),
             "bool" => Some(DefType::Bool),
             "string" => Some(DefType::String),
@@ -388,8 +394,11 @@ impl DefType {
     }
     fn allows_rust_type(&self, rust_type: &str) -> bool {
         let ty = match &self {
-            DefType::Uint32 => "u32",
             DefType::Int32 => "i32",
+            DefType::Int64 => "i64",
+            DefType::Uint32 => "u32",
+            DefType::Uint64 => "u64",
+            DefType::Sint32 => "i32",
             DefType::Sint64 => "i64",
             DefType::Bool => "bool",
             DefType::String => "String",
@@ -400,7 +409,10 @@ impl DefType {
     fn to_input_wire_data_type(&self) -> proc_macro2::TokenStream {
         match &self {
             DefType::Int32 => quote! {wire::TypeVairant::Int32},
+            DefType::Int64 => quote! {wire::TypeVairant::Int64},
             DefType::Uint32 => quote! {wire::TypeVairant::Uint32},
+            DefType::Uint64 => quote! {wire::TypeVairant::Uint64},
+            DefType::Sint32 => quote! {wire::TypeVairant::Sint32},
             DefType::Sint64 => quote! {wire::TypeVairant::Sint64},
             DefType::Bool => quote! {wire::TypeVairant::Bool},
             DefType::String => quote! {wire::TypeLengthDelimited::WireString},
@@ -409,10 +421,15 @@ impl DefType {
 
     fn to_corresponding_wire_type(&self) -> proc_macro2::TokenStream {
         match &self {
-            DefType::Int32 => quote! {wire::WireData::Varint},
-            DefType::Uint32 => quote! {wire::WireData::Varint},
-            DefType::Sint64 => quote! {wire::WireData::Varint},
-            DefType::Bool => quote! {wire::WireData::Varint},
+            DefType::Int32
+            | DefType::Int64
+            | DefType::Uint32
+            | DefType::Uint64
+            | DefType::Sint32
+            | DefType::Sint64
+            | DefType::Bool => {
+                quote! {wire::WireData::Varint}
+            }
             DefType::String => quote! {wire::WireData::LengthDelimited},
         }
     }

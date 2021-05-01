@@ -13,13 +13,10 @@ impl VariantToValue for i32 {
     fn parse(input: u128, ty: TypeVairant) -> Result<Self> {
         match ty {
             TypeVairant::Int32 => {
-                if input > u32::MAX as u128 {
-                    return Err(anyhow::anyhow!(
-                        "unexpected value. this value is greater than {}",
-                        u32::MAX
-                    ));
-                }
-                Ok(input as i32)
+                // マイナス値の場合、i32 であっても i64 と同様のバイト数を消費する必要があるので、i64として処理させる
+                let result = i64::parse(input, TypeVairant::Int64)?;
+                let u = TryFrom::try_from(result)?;
+                Ok(u)
             }
             TypeVairant::Sint32 => {
                 let decoded = zigzag::decode(input);
@@ -36,7 +33,10 @@ impl VariantToValue for i32 {
 
     fn to_variant(&self, ty: TypeVairant) -> Result<u128> {
         match ty {
-            TypeVairant::Int32 => Ok(*self as u128),
+            TypeVairant::Int32 => {
+                let x: i64 = (*self).into();
+                VariantToValue::to_variant(&x, TypeVairant::Int64)
+            }
             TypeVairant::Sint32 => Ok(zigzag::encode(*self) as u128),
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?} or {:?}",TypeVairant::Int32, TypeVairant::Sint32},
@@ -53,7 +53,7 @@ impl VariantToValue for i64 {
             TypeVairant::Int64 => {
                 if input > u64::MAX as u128 {
                     return Err(anyhow::anyhow!(
-                        "unexpected value. this value is greater than {}",
+                        "unexpected value. this value is greater than {}(u64::MAX)",
                         u64::MAX
                     ));
                 }
@@ -74,7 +74,8 @@ impl VariantToValue for i64 {
 
     fn to_variant(&self, ty: TypeVairant) -> Result<u128> {
         match ty {
-            TypeVairant::Int64 => Ok(*self as u128),
+            // u64に一度キャストすることにより、内部の保持しているバイト数を64bitに合わせる
+            TypeVairant::Int64 => Ok(*self as u64 as u128),
             TypeVairant::Sint64 => Ok(zigzag::encode(*self) as u128),
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?} or {:?}",TypeVairant::Int64, TypeVairant::Sint64},
@@ -474,7 +475,8 @@ mod tests {
                 Parser::<Vec<i32>>::parse(
                     &WireDataLengthDelimited::new(vec![
                         0b00000001, 0b00000010, 0b11101000, 0b00000111, 0b00000100, 0b00000101,
-                        0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00001111,
+                        0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
+                        0b11111111, 0b11111111, 0b11111111, 0b00000001,
                     ]),
                     TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
                         TypeVairant::Int32

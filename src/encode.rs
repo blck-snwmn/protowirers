@@ -124,6 +124,24 @@ mod tests {
             let x: Vec<u8> = c.into_inner();
             assert_eq!(x, vec![]);
         }
+        {
+            {
+                let x: i64 = -6423;
+                let mut c = Cursor::new(Vec::new());
+                encode_variants(&mut c, x as u128).unwrap();
+
+                let x: Vec<u8> = c.into_inner();
+                println!("{:?}", x);
+            }
+            {
+                let x: i32 = -6423;
+                let mut c = Cursor::new(Vec::new());
+                encode_variants(&mut c, x as u64 as u128).unwrap();
+
+                let x: Vec<u8> = c.into_inner();
+                println!("{:?}", x);
+            }
+        }
     }
 
     #[test]
