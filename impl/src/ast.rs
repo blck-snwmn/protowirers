@@ -99,18 +99,15 @@ impl<'a> Field<'a> {
         //     }
         // }
         if !attr.def_type.allows_rust_type(ty) {
-            Err(syn::Error::new_spanned(
+            return Err(syn::Error::new_spanned(
                 &ty,
                 format!(
                     "defined def_type `{:?}` does not match this Rust type",
                     attr.def_type,
                 ),
-            ))?
+            ));
         }
-        Ok(Self {
-            original: f,
-            attr: attr,
-        })
+        Ok(Self { original: f, attr })
     }
     fn build_struct_fields(&self) -> proc_macro2::TokenStream {
         let filed_indent = &self.original.ident;
@@ -203,10 +200,10 @@ impl<'a> Attribute<'a> {
                     syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
                     _ => None,
                 })?;
-                return Some((attr, ml));
+                Some((attr, ml))
             })
             .collect();
-        if a.len() == 0 {
+        if a.is_empty() {
             return Err(syn::Error::new_spanned(
                 &with_field.ident,
                 "#[def(...)] attribute is required",
@@ -287,12 +284,12 @@ impl<'a> Attribute<'a> {
                             ));
                         }
                         let v = match named_value.lit {
-                            syn::Lit::Str(ref v) => {
-                                DefType::new(v.value()).ok_or(syn::Error::new_spanned(
+                            syn::Lit::Str(ref v) => DefType::new(v.value()).ok_or_else(|| {
+                                syn::Error::new_spanned(
                                     &named_value.lit,
                                     format!("no suport def_type. got=`{}`.", v.value()),
-                                ))
-                            }
+                                )
+                            }),
                             _ => Err(syn::Error::new_spanned(
                                 &named_value.lit,
                                 "invalid num of sub field in #[def(...)]. ",
