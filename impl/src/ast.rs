@@ -227,8 +227,8 @@ impl<'a> Attribute<'a> {
                 _ => Err(syn::Error::new_spanned(nested_meta, "unsported meta data.")),
             }?;
             match meta {
-                syn::Meta::Path(path_meta) => {
-                    if path_meta.is_ident("repeated") {
+                syn::Meta::Path(path_meta) => match path_meta.get_ident() {
+                    Some(ident) if ident == "repeated" => {
                         if repeated.is_some() {
                             return Err(syn::Error::new_spanned(
                                 &path_meta,
@@ -236,7 +236,8 @@ impl<'a> Attribute<'a> {
                             ));
                         }
                         repeated = Some(());
-                    } else if path_meta.is_ident("packed") {
+                    }
+                    Some(ident) if ident == "packed" => {
                         if packed.is_some() {
                             return Err(syn::Error::new_spanned(
                                 &path_meta,
@@ -244,13 +245,14 @@ impl<'a> Attribute<'a> {
                             ));
                         }
                         packed = Some(());
-                    } else {
+                    }
+                    _ => {
                         return Err(syn::Error::new_spanned(
                             path_meta,
                             "unsuported meta data in #[def(...)]. ",
                         ));
                     }
-                }
+                },
                 syn::Meta::List(ml) => {
                     return Err(syn::Error::new_spanned(
                         &ml,
