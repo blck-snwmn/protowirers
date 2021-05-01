@@ -10,11 +10,12 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 enum DecodeError {
     #[error("unexpected format. end come after MSB is 0")]
-    UnexpectFormatError,
+    UnexpectFormat,
+    #[allow(dead_code)]
     #[error("unexpected red size. got={0}, want={1}")]
-    UnexpectRepeatSizeError(u128, u128),
+    UnexpectRepeatSize(u128, u128),
     #[error("no expected type value. got={0}")]
-    UnexpectedWireDataValueError(u128),
+    UnexpectedWireDataValue(u128),
 }
 
 fn decode_variants<T: std::io::Read>(data: &mut T) -> Result<u128> {
@@ -24,8 +25,8 @@ fn decode_variants<T: std::io::Read>(data: &mut T) -> Result<u128> {
     loop {
         let mut buf = [0; 1];
         let result = data.read_exact(&mut buf);
-        if let Err(_) = result {
-            return Err(DecodeError::UnexpectFormatError)?;
+        if result.is_err() {
+            return Err(DecodeError::UnexpectFormat.into());
         }
         // MSB は後続のバイトが続くかどうかの判定に使われる
         // 1 の場合、後続が続く
@@ -33,8 +34,8 @@ fn decode_variants<T: std::io::Read>(data: &mut T) -> Result<u128> {
         let buf: u128 = (buf[0] & 0b01111111) as u128;
         // little endian
         let buf = buf << (7 * loop_count);
-        sum = buf + sum;
-        loop_count = loop_count + 1;
+        sum += buf;
+        loop_count += 1;
         if top != 0b10000000 {
             return Ok(sum);
         }
@@ -95,7 +96,7 @@ fn decode_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct> {
         // 3=>WireData::StartGroup,
         // 4=>WireData::EndGroup,
         5 => Ok(WireData::Bit32(decode_32bit(data)?)),
-        _ => Err(DecodeError::UnexpectedWireDataValueError(wire_type)),
+        _ => Err(DecodeError::UnexpectedWireDataValue(wire_type)),
     }?;
     Ok(WireStruct::new(field_num, wt))
 }
@@ -367,7 +368,7 @@ mod tests {
     fn check() {
         {
             let mut sum = 0;
-            sum = 2 + sum;
+            sum += 2;
             println!("sum={}", sum);
             sum = 0b00101100 + (sum << 7);
             println!("sum={}", sum);
