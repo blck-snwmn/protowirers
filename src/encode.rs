@@ -90,7 +90,6 @@ pub fn encode_wire_binary(data: &mut Cursor<Vec<u8>>, inputs: Vec<WireStruct>) -
 mod tests {
     use super::*;
     use crate::wire::{WireData, WireDataLengthDelimited, WireDataVarint};
-    use std::io::Read;
     #[test]
     fn test_encode_variants() {
         {
@@ -362,47 +361,47 @@ mod tests {
         }
     }
 
-    #[test]
-    fn check() {
-        {
-            let bytes: Vec<u8> = Vec::new();
-            let mut c = Cursor::new(bytes);
+    // #[test]
+    // fn check() {
+    //     {
+    //         let bytes: Vec<u8> = Vec::new();
+    //         let mut c = Cursor::new(bytes);
 
-            println!("{:?}", c.write_all(&[1, 2, 3]));
-            println!("{:?}", c.write_all(&[4, 5, 6]));
-            println!("{:?}", c.write_all(&[7, 8, 9]));
-            println!("{:?}", c.bytes());
-        }
-        {
-            let mut c = Cursor::new(Vec::new());
-            encode_variants(&mut c, 12323412).unwrap();
+    //         println!("{:?}", c.write_all(&[1, 2, 3]));
+    //         println!("{:?}", c.write_all(&[4, 5, 6]));
+    //         println!("{:?}", c.write_all(&[7, 8, 9]));
+    //         println!("{:?}", c.bytes());
+    //     }
+    //     {
+    //         let mut c = Cursor::new(Vec::new());
+    //         encode_variants(&mut c, 12323412).unwrap();
 
-            let x: Vec<u8> = c.into_inner();
-            println!("{:?}", x)
-        }
-        {
-            let p = |x: u128| println!("{:#030b}", x);
-            println!("--------------");
-            let mut x = 12323412;
-            p(x);
-            x = x >> 7;
-            p(x);
-            x = x >> 7;
-            p(x);
-            x = x >> 7;
-            p(x);
-        }
-        {
-            let p = |x: u128| println!("{:#018b}", x);
-            println!("--------------");
-            let mut x = 65535;
-            p(x);
-            x = x >> 7;
-            p(x);
-            x = x >> 7;
-            p(x);
-            x = x >> 7;
-            p(x);
-        }
-    }
+    //         let x: Vec<u8> = c.into_inner();
+    //         println!("{:?}", x)
+    //     }
+    //     {
+    //         let p = |x: u128| println!("{:#030b}", x);
+    //         println!("--------------");
+    //         let mut x = 12323412;
+    //         p(x);
+    //         x = x >> 7;
+    //         p(x);
+    //         x = x >> 7;
+    //         p(x);
+    //         x = x >> 7;
+    //         p(x);
+    //     }
+    //     {
+    //         let p = |x: u128| println!("{:#018b}", x);
+    //         println!("--------------");
+    //         let mut x = 65535;
+    //         p(x);
+    //         x = x >> 7;
+    //         p(x);
+    //         x = x >> 7;
+    //         p(x);
+    //         x = x >> 7;
+    //         p(x);
+    //     }
+    // }
 }
