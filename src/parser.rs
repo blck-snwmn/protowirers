@@ -246,6 +246,83 @@ impl Bit64ToValue for f64 {
         }
     }
 }
+
+pub trait Bit32ToValue: Sized {
+    fn from_bit64(input: [u8; 4], ty: TypeBit32) -> Result<Self>;
+    fn to_bit64(&self, ty: TypeBit32) -> Result<[u8; 4]>;
+}
+
+impl Bit32ToValue for i32 {
+    fn from_bit64(input: [u8; 4], ty: TypeBit32) -> Result<Self> {
+        match ty {
+            TypeBit32::Sfixed32 => Ok(i32::from_le_bytes(input)),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeBit32::Sfixed32},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+
+    fn to_bit64(&self, ty: TypeBit32) -> Result<[u8; 4]> {
+        match ty {
+            TypeBit32::Sfixed32 => Ok(self.to_le_bytes()),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeBit32::Sfixed32},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+}
+
+impl Bit32ToValue for u32 {
+    fn from_bit64(input: [u8; 4], ty: TypeBit32) -> Result<Self> {
+        match ty {
+            TypeBit32::Fixed32 => Ok(u32::from_le_bytes(input)),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeBit32::Fixed32},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+
+    fn to_bit64(&self, ty: TypeBit32) -> Result<[u8; 4]> {
+        match ty {
+            TypeBit32::Fixed32 => Ok(self.to_le_bytes()),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeBit32::Fixed32},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+}
+
+impl Bit32ToValue for f32 {
+    fn from_bit64(input: [u8; 4], ty: TypeBit32) -> Result<Self> {
+        match ty {
+            TypeBit32::Float => Ok(f32::from_le_bytes(input)),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}", TypeBit32::Float},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+
+    fn to_bit64(&self, ty: TypeBit32) -> Result<[u8; 4]> {
+        match ty {
+            TypeBit32::Float => Ok(self.to_le_bytes()),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}", TypeBit32::Float},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+}
 #[derive(Error, Debug)]
 enum ParseError {
     #[error("unexpected type. got={got}, want={want}")]
@@ -370,6 +447,19 @@ impl<T: VariantToValue> Parser<T> for WireDataVarint {
 
 impl<T: Bit64ToValue> Parser<T> for WireDataBit64 {
     type Type = TypeBit64;
+    fn parse(&self, ty: Self::Type) -> Result<T> {
+        T::from_bit64(self.value, ty)
+    }
+
+    fn from(input: T, ty: Self::Type) -> Result<Self> {
+        Ok(Self {
+            value: input.to_bit64(ty)?,
+        })
+    }
+}
+
+impl<T: Bit32ToValue> Parser<T> for WireDataBit32 {
+    type Type = TypeBit32;
     fn parse(&self, ty: Self::Type) -> Result<T> {
         T::from_bit64(self.value, ty)
     }
@@ -815,6 +905,80 @@ mod tests {
                     0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
                     0b11110100, 0b00111111,
                 ])
+            );
+        }
+    }
+
+    #[test]
+    fn parse_i32_as_bit32() {
+        {
+            assert_eq!(
+                Parser::<i32>::parse(
+                    &WireDataBit32::new([0b00100000, 0b00000100, 0b00000000, 0b00000000,]),
+                    TypeBit32::Sfixed32
+                )
+                .unwrap(),
+                1056
+            );
+            assert_eq!(
+                Parser::<i32>::parse(
+                    &WireDataBit32::new([0b11100000, 0b11111011, 0b11111111, 0b11111111,]),
+                    TypeBit32::Sfixed32
+                )
+                .unwrap(),
+                -1056
+            );
+        }
+        {
+            let x: WireDataBit32 = Parser::<i32>::from(1056, TypeBit32::Sfixed32).unwrap();
+            assert_eq!(
+                x,
+                WireDataBit32::new([0b00100000, 0b00000100, 0b00000000, 0b00000000]),
+            );
+            let x: WireDataBit32 = Parser::<i32>::from(-1056, TypeBit32::Sfixed32).unwrap();
+            assert_eq!(
+                x,
+                WireDataBit32::new([0b11100000, 0b11111011, 0b11111111, 0b11111111,]),
+            );
+        }
+    }
+
+    #[test]
+    fn parse_u32_as_bit32() {
+        {
+            assert_eq!(
+                Parser::<u32>::parse(
+                    &WireDataBit32::new([0b00101011, 0b00000000, 0b00000000, 0b00000000,]),
+                    TypeBit32::Fixed32
+                )
+                .unwrap(),
+                43
+            );
+        }
+        {
+            let x: WireDataBit32 = Parser::<u32>::from(43, TypeBit32::Fixed32).unwrap();
+            assert_eq!(
+                x,
+                WireDataBit32::new([0b00101011, 0b00000000, 0b00000000, 0b00000000]),
+            );
+        }
+    }
+    #[test]
+    fn parse_f32_as_bit32() {
+        let error_margin = f32::EPSILON;
+        {
+            let r = Parser::<f32>::parse(
+                &WireDataBit32::new([0b00000110, 0b10000001, 0b01001101, 0b01000000]),
+                TypeBit32::Float,
+            )
+            .unwrap();
+            assert!((r - 3.211f32).abs() < error_margin);
+        }
+        {
+            let x: WireDataBit32 = Parser::<f32>::from(3.211f32, TypeBit32::Float).unwrap();
+            assert_eq!(
+                x,
+                WireDataBit32::new([0b00000110, 0b10000001, 0b01001101, 0b01000000,])
             );
         }
     }

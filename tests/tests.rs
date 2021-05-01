@@ -27,12 +27,20 @@ fn test_mapping() {
         i_int64: i64,
         #[def(field_num = 7, def_type = "bool")]
         b_bool: bool,
+
         #[def(field_num = 8, def_type = "fixed64")]
         f_fixed64: u64,
         #[def(field_num = 9, def_type = "sfixed64")]
         s_sfixed64: i64,
         #[def(field_num = 10, def_type = "double")]
         d_double: f64,
+
+        #[def(field_num = 15, def_type = "fixed32")]
+        f_fixed32: u32,
+        #[def(field_num = 16, def_type = "sfixed32")]
+        s_sfixed32: i32,
+        #[def(field_num = 17, def_type = "float")]
+        f_float: f32,
     }
     let bytes: &[u8] = &[
         0b00001000, 0b00000001, 0b00010000, 0b01100100, 0b00011000, 0b11110011, 0b00000001,
@@ -42,7 +50,10 @@ fn test_mapping() {
         0b01000001, 0b10111011, 0b00000001, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
         0b00000000, 0b00000000, 0b01001001, 0b01011011, 0b11111101, 0b11111111, 0b11111111,
         0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b01010001, 0b00000000, 0b00000000,
-        0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b11110100, 0b00111111,
+        0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b11110100, 0b00111111, 0b01111101,
+        0b00101011, 0b00000000, 0b00000000, 0b00000000, 0b10000101, 0b00000001, 0b11100000,
+        0b11111011, 0b11111111, 0b11111111, 0b10001101, 0b00000001, 0b00000110, 0b10000001,
+        0b01001101, 0b01000000,
     ];
     {
         let x = Sample::parse(bytes).unwrap();
@@ -55,8 +66,12 @@ fn test_mapping() {
         assert!(x.b_bool);
         assert_eq!(x.f_fixed64, 443);
         assert_eq!(x.s_sfixed64, -677);
-        let error_margin = f64::EPSILON;
-        assert!((x.d_double - 1.25f64).abs() < error_margin);
+        let error_margin_f64 = f64::EPSILON;
+        assert!((x.d_double - 1.25f64).abs() < error_margin_f64);
+        assert_eq!(x.f_fixed32, 43);
+        assert_eq!(x.s_sfixed32, -1056);
+        let error_margin_f32 = f32::EPSILON;
+        assert!((x.f_float - 3.211).abs() < error_margin_f32);
         let x = x.bytes().unwrap();
         assert_eq!(
             x,
@@ -68,7 +83,10 @@ fn test_mapping() {
                 0b01000001, 0b10111011, 0b00000001, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
                 0b00000000, 0b00000000, 0b01001001, 0b01011011, 0b11111101, 0b11111111, 0b11111111,
                 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b01010001, 0b00000000, 0b00000000,
-                0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b11110100, 0b00111111,
+                0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b11110100, 0b00111111, 0b01111101,
+                0b00101011, 0b00000000, 0b00000000, 0b00000000, 0b10000101, 0b00000001, 0b11100000,
+                0b11111011, 0b11111111, 0b11111111, 0b10001101, 0b00000001, 0b00000110, 0b10000001,
+                0b01001101, 0b01000000,
             ]
         );
     }
