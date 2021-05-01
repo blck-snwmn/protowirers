@@ -11,6 +11,7 @@ use protowirers::wire::*;
 use protowirers::{decode, encode};
 use std::io::Cursor;
 impl Sample {
+    #[allow(dead_code)]
     pub fn parse(bytes: &[u8]) -> Result<Self> {
         let mut c = Cursor::new(bytes);
         let result = decode::decode_wire_binary(&mut c)?;
@@ -33,6 +34,7 @@ impl Sample {
         Ok(Self { s, x })
     }
 
+    #[allow(dead_code)]
     pub fn bytes(&self) -> Result<Vec<u8>> {
         let inputs = vec![
             WireStruct::from_u32(1, self.s),
