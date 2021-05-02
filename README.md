@@ -4,6 +4,8 @@ sampel to encode/decode binary wire format for protocol buffer messages
 
 ## Example
 
+Specify `Proto`
+
 ```rust
 #[derive(Proto, Default, Clone)]
 struct Sample {
@@ -18,4 +20,11 @@ struct Sample {
     #[def(field_num = 5, def_type = "uint32", packed, repeated)]
     r_u_int32: Vec<u32>,
 }
+```
+
+Implement the following function
+
+```rust
+fn parse(bytes: &[u8])->anyhow::Result<Self>{}
+fn bytes(&self)-> anyhow::Result<Vec<u8>>
 ```
