@@ -325,6 +325,30 @@ impl<T: VariantToValue> LengthDelimitedToValue for Vec<T> {
     }
 }
 
+impl LengthDelimitedToValue for Vec<u8> {
+    fn from_length_delimited(input: Vec<u8>, ty: TypeLengthDelimited) -> Result<Self> {
+        match ty {
+            TypeLengthDelimited::Bytes => Ok(input),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: "TypeLengthDelimited::Bytes".to_string(),
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+
+    fn into_length_delimited(self, ty: TypeLengthDelimited) -> Result<Vec<u8>> {
+        match ty {
+            TypeLengthDelimited::Bytes => Ok(self),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: "TypeLengthDelimited::Bytes".to_string(),
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+}
+
 impl<T: Proto> LengthDelimitedToValue for T {
     fn from_length_delimited(input: Vec<u8>, ty: TypeLengthDelimited) -> Result<Self> {
         if !matches!(ty, TypeLengthDelimited::EmbeddedMessages) {

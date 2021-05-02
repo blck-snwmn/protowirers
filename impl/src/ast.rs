@@ -341,6 +341,9 @@ impl<'a> Attribute<'a> {
         .and_then(|p| {
             // ident が取れるならそれをもとに型を。そうでない場合、Vecに指定されている型を採用
             p.get_ident().or_else(|| {
+                if !(self.def_type.is_allows_vec() || self.packed && self.repeated) {
+                    return None;
+                }
                 p.segments
                     .iter()
                     // Vec限定
@@ -379,6 +382,7 @@ pub enum DefType {
     Sfixed64,
     Double,
     String,
+    Bytes,
     Fixed32,
     Sfixed32,
     Float,
@@ -394,15 +398,19 @@ impl DefType {
             "sint32" => Some(DefType::Sint32),
             "sint64" => Some(DefType::Sint64),
             "bool" => Some(DefType::Bool),
-            "string" => Some(DefType::String),
             "fixed64" => Some(DefType::Fixed64),
             "sfixed64" => Some(DefType::Sfixed64),
             "double" => Some(DefType::Double),
             "fixed32" => Some(DefType::Fixed32),
+            "string" => Some(DefType::String),
+            "bytes" => Some(DefType::Bytes),
             "sfixed32" => Some(DefType::Sfixed32),
             "float" => Some(DefType::Float),
             _ => None,
         }
+    }
+    fn is_allows_vec(&self) -> bool {
+        matches!(self, DefType::Bytes)
     }
     fn allows_rust_type(&self, rust_type: &str) -> bool {
         let ty = match &self {
@@ -414,6 +422,7 @@ impl DefType {
             DefType::Sint64 => "i64",
             DefType::Bool => "bool",
             DefType::String => "String",
+            DefType::Bytes => "u8",
             DefType::Fixed64 => "u64",
             DefType::Sfixed64 => "i64",
             DefType::Double => "f64",
@@ -434,6 +443,7 @@ impl DefType {
             DefType::Sint64 => quote! {wire::TypeVairant::Sint64},
             DefType::Bool => quote! {wire::TypeVairant::Bool},
             DefType::String => quote! {wire::TypeLengthDelimited::WireString},
+            DefType::Bytes => quote! {wire::TypeLengthDelimited::Bytes},
             DefType::Fixed64 => quote! {wire::TypeBit64::Fixed64},
             DefType::Sfixed64 => quote! {wire::TypeBit64::Sfixed64},
             DefType::Double => quote! {wire::TypeBit64::Double},
@@ -454,7 +464,7 @@ impl DefType {
             | DefType::Bool => {
                 quote! {wire::WireData::Varint}
             }
-            DefType::String => quote! {wire::WireData::LengthDelimited},
+            DefType::String | DefType::Bytes => quote! {wire::WireData::LengthDelimited},
             DefType::Fixed64 | DefType::Sfixed64 | DefType::Double => {
                 quote! {wire::WireData::Bit64}
             }
