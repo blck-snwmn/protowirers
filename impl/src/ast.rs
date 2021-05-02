@@ -136,10 +136,10 @@ impl<'a> Field<'a> {
         // repeated & packed は LengthDelimited として扱う
         if self.attr.repeated && self.attr.packed {
             return quote! {
-                (#fieild_num, wire::WireData::LengthDelimited(v)) => {
+                (#fieild_num, protowirers::wire::WireData::LengthDelimited(v)) => {
                     // #filed_indent = Some(#def_type(v)?);
-                    let vv = wire::TypeLengthDelimited::PackedRepeatedFields(
-                        wire::AllowedPakcedType::Variant(#wire_data_type)
+                    let vv = protowirers::wire::TypeLengthDelimited::PackedRepeatedFields(
+                        protowirers::wire::AllowedPakcedType::Variant(#wire_data_type)
                     );
                     #filed_indent = Some(v.parse(vv)?);
                 }
@@ -163,11 +163,11 @@ impl<'a> Field<'a> {
         let wdt = a.def_type.to_input_wire_data_type();
         if self.attr.repeated && self.attr.packed {
             return quote! {
-                wire::WireStruct::new(
+                protowirers::wire::WireStruct::new(
                     #fieild_num,
-                    WireData::LengthDelimited(Parser::from(
+                    protowirers::wire::WireData::LengthDelimited(protowirers::parser::Parser::from(
                         self.#filed_indent.clone(),
-                        TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
+                        protowirers::wire::TypeLengthDelimited::PackedRepeatedFields(protowirers::wire::AllowedPakcedType::Variant(
                             #wdt,
                         )),
                     )?),
@@ -176,9 +176,9 @@ impl<'a> Field<'a> {
         }
         // TODO 暫定として一律cloneするが、要検討。
         quote! {
-            WireStruct::new(
+            protowirers::wire::WireStruct::new(
                 #fieild_num,
-                #wt(Parser::from(self.#filed_indent.clone(), #wdt)?),
+                #wt(protowirers::parser::Parser::from(self.#filed_indent.clone(), #wdt)?),
             )
         }
     }
@@ -382,6 +382,7 @@ pub enum DefType {
     Sfixed64,
     Double,
     String,
+    EmbeddedMessages,
     Bytes,
     Fixed32,
     Sfixed32,
@@ -404,6 +405,7 @@ impl DefType {
             "fixed32" => Some(DefType::Fixed32),
             "string" => Some(DefType::String),
             "bytes" => Some(DefType::Bytes),
+            "embedded" => Some(DefType::EmbeddedMessages),
             "sfixed32" => Some(DefType::Sfixed32),
             "float" => Some(DefType::Float),
             _ => None,
@@ -423,6 +425,9 @@ impl DefType {
             DefType::Bool => "bool",
             DefType::String => "String",
             DefType::Bytes => "u8",
+            DefType::EmbeddedMessages => {
+                return true;
+            }
             DefType::Fixed64 => "u64",
             DefType::Sfixed64 => "i64",
             DefType::Double => "f64",
@@ -435,21 +440,24 @@ impl DefType {
 
     fn to_input_wire_data_type(&self) -> proc_macro2::TokenStream {
         match &self {
-            DefType::Int32 => quote! {wire::TypeVairant::Int32},
-            DefType::Int64 => quote! {wire::TypeVairant::Int64},
-            DefType::Uint32 => quote! {wire::TypeVairant::Uint32},
-            DefType::Uint64 => quote! {wire::TypeVairant::Uint64},
-            DefType::Sint32 => quote! {wire::TypeVairant::Sint32},
-            DefType::Sint64 => quote! {wire::TypeVairant::Sint64},
-            DefType::Bool => quote! {wire::TypeVairant::Bool},
-            DefType::String => quote! {wire::TypeLengthDelimited::WireString},
-            DefType::Bytes => quote! {wire::TypeLengthDelimited::Bytes},
-            DefType::Fixed64 => quote! {wire::TypeBit64::Fixed64},
-            DefType::Sfixed64 => quote! {wire::TypeBit64::Sfixed64},
-            DefType::Double => quote! {wire::TypeBit64::Double},
-            DefType::Fixed32 => quote! {wire::TypeBit32::Fixed32},
-            DefType::Sfixed32 => quote! {wire::TypeBit32::Sfixed32},
-            DefType::Float => quote! {wire::TypeBit32::Float},
+            DefType::Int32 => quote! {protowirers::wire::TypeVairant::Int32},
+            DefType::Int64 => quote! {protowirers::wire::TypeVairant::Int64},
+            DefType::Uint32 => quote! {protowirers::wire::TypeVairant::Uint32},
+            DefType::Uint64 => quote! {protowirers::wire::TypeVairant::Uint64},
+            DefType::Sint32 => quote! {protowirers::wire::TypeVairant::Sint32},
+            DefType::Sint64 => quote! {protowirers::wire::TypeVairant::Sint64},
+            DefType::Bool => quote! {protowirers::wire::TypeVairant::Bool},
+            DefType::String => quote! {protowirers::wire::TypeLengthDelimited::WireString},
+            DefType::Bytes => quote! {protowirers::wire::TypeLengthDelimited::Bytes},
+            DefType::EmbeddedMessages => {
+                quote! {protowirers::wire::TypeLengthDelimited::EmbeddedMessages}
+            }
+            DefType::Fixed64 => quote! {protowirers::wire::TypeBit64::Fixed64},
+            DefType::Sfixed64 => quote! {protowirers::wire::TypeBit64::Sfixed64},
+            DefType::Double => quote! {protowirers::wire::TypeBit64::Double},
+            DefType::Fixed32 => quote! {protowirers::wire::TypeBit32::Fixed32},
+            DefType::Sfixed32 => quote! {protowirers::wire::TypeBit32::Sfixed32},
+            DefType::Float => quote! {protowirers::wire::TypeBit32::Float},
         }
     }
 
@@ -462,13 +470,17 @@ impl DefType {
             | DefType::Sint32
             | DefType::Sint64
             | DefType::Bool => {
-                quote! {wire::WireData::Varint}
+                quote! {protowirers::wire::WireData::Varint}
             }
-            DefType::String | DefType::Bytes => quote! {wire::WireData::LengthDelimited},
+            DefType::String | DefType::Bytes | DefType::EmbeddedMessages => {
+                quote! {protowirers::wire::WireData::LengthDelimited}
+            }
             DefType::Fixed64 | DefType::Sfixed64 | DefType::Double => {
-                quote! {wire::WireData::Bit64}
+                quote! {protowirers::wire::WireData::Bit64}
             }
-            DefType::Fixed32 | DefType::Sfixed32 | DefType::Float => quote! {wire::WireData::Bit32},
+            DefType::Fixed32 | DefType::Sfixed32 | DefType::Float => {
+                quote! {protowirers::wire::WireData::Bit32}
+            }
         }
     }
 }

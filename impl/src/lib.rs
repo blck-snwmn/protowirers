@@ -27,14 +27,11 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let build_gen_wirestructs = data.build_gen_wirestructs();
 
     Ok(quote! {
-        use std::io::Cursor;
-        use anyhow::Result;
-        use protowirers::parser::*;
-        use protowirers::wire::*;
+        impl protowirers::wire::Proto for #input_indent{
+            fn parse(bytes: &[u8])->anyhow::Result<Self>{
+                use protowirers::parser::*;
 
-        impl #input_indent{
-            pub fn parse(bytes: &[u8])->Result<Self>{
-                let mut c = Cursor::new(bytes);
+                let mut c = std::io::Cursor::new(bytes);
                 let result = decode::decode_wire_binary(&mut c)?;
 
                 #init_fields
@@ -48,11 +45,13 @@ fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
                     #build_fields
                 })
             }
-            pub fn bytes(&self)-> Result<Vec<u8>>{
+            fn bytes(&self)-> anyhow::Result<Vec<u8>>{
+                use protowirers::parser::*;
+
                 let inputs = vec![
                     #build_gen_wirestructs
                 ];
-                let mut c = Cursor::new(Vec::new());
+                let mut c = std::io::Cursor::new(Vec::new());
                 encode::encode_wire_binary(&mut c, inputs)?;
                 Ok(c.into_inner())
             }
