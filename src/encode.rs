@@ -29,12 +29,9 @@ fn encode_variants<T: std::io::Write>(data: &mut T, input: u128) -> Result<()> {
 }
 
 pub(crate) fn encode_repeat<T: std::io::Write>(data: &mut T, input: Vec<u128>) -> Result<()> {
-    let mut tmp = Vec::new();
     for i in input {
-        encode_variants(&mut tmp, i)?;
+        encode_variants(data, i)?;
     }
-    encode_variants(data, tmp.len() as u128)?;
-    data.write_all(tmp.as_slice())?;
     Ok(())
 }
 
@@ -160,12 +157,12 @@ mod tests {
         {
             let mut v = Vec::new();
             encode_repeat(&mut v, vec![1]).unwrap();
-            assert_eq!(v, vec![0b00000001, 0b00000001]);
+            assert_eq!(v, vec![0b00000001]);
         }
         {
             let mut v = Vec::new();
             encode_repeat(&mut v, vec![1, 300]).unwrap();
-            assert_eq!(v, vec![0b00000011, 0b00000001, 0b10101100, 0b00000010]);
+            assert_eq!(v, vec![0b00000001, 0b10101100, 0b00000010]);
         }
         {
             let mut v = Vec::new();
@@ -173,8 +170,8 @@ mod tests {
             assert_eq!(
                 v,
                 vec![
-                    0b00000111, 0b00000001, 0b10101100, 0b00000010, 0b11010100, 0b10010100,
-                    0b11110000, 0b00000101
+                    0b00000001, 0b10101100, 0b00000010, 0b11010100, 0b10010100, 0b11110000,
+                    0b00000101
                 ]
             );
         }
