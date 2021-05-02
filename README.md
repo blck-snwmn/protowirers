@@ -4,7 +4,7 @@ sampel to encode/decode binary wire format for protocol buffer messages
 
 ## Example
 
-```rs
+```rust
 #[derive(Proto, Default, Clone)]
 struct Sample {
     #[def(field_num = 1, def_type = "sint64")]
