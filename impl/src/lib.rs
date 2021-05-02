@@ -1,60 +1,15 @@
 extern crate proc_macro;
 
 mod ast;
+mod expand;
 
-use ast::Input;
 use proc_macro::TokenStream;
-use quote::{format_ident, quote};
 use syn::{parse_macro_input, DeriveInput};
 
 #[proc_macro_derive(Proto, attributes(def))]
 pub fn derive_parse(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    expand(input)
+    expand::derive(&input)
         .unwrap_or_else(|e| e.to_compile_error())
         .into()
-}
-
-fn expand(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
-    // TODO エラーメッセージ改善
-    // atribute自体がエラーの場合、() が表示されてしまう, など
-    let input_indent = format_ident!("{}", input.ident);
-    let Input::Struct(data) = Input::from_syn(&input)?;
-
-    let init_fields = data.build_declare_for_init();
-    let build_fields = data.build_struct_fields();
-    let build_parse_fields = data.build_match_case();
-    let build_gen_wirestructs = data.build_gen_wirestructs();
-
-    Ok(quote! {
-        impl protowirers::wire::Proto for #input_indent{
-            fn parse(bytes: &[u8])->anyhow::Result<Self>{
-                use protowirers::parser::*;
-
-                let mut c = std::io::Cursor::new(bytes);
-                let result = decode::decode_wire_binary(&mut c)?;
-
-                #init_fields
-                for sw in result {
-                    match (sw.field_number(), sw.wire_type()) {
-                        #build_parse_fields
-                        _ => (),
-                    }
-                }
-                Ok(Self {
-                    #build_fields
-                })
-            }
-            fn bytes(&self)-> anyhow::Result<Vec<u8>>{
-                use protowirers::parser::*;
-
-                let inputs = vec![
-                    #build_gen_wirestructs
-                ];
-                let mut c = std::io::Cursor::new(Vec::new());
-                encode::encode_wire_binary(&mut c, inputs)?;
-                Ok(c.into_inner())
-            }
-        }
-    })
 }
