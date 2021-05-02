@@ -1,16 +1,34 @@
 use quote::quote;
 pub enum Input<'a> {
     Struct(Struct<'a>),
+    Enum(Enum<'a>),
 }
 
 impl<'a> Input<'a> {
     pub fn from_syn(node: &'a syn::DeriveInput) -> syn::Result<Self> {
         match &node.data {
             syn::Data::Struct(data) => Struct::from_syn(node, data).map(Input::Struct),
+            syn::Data::Enum(data) => Ok(Input::Enum(Enum::from_syn(node, data))),
             _ => Err(syn::Error::new_spanned(node, "suport data is only Sturct")),
         }
     }
 }
+
+pub struct Enum<'a> {
+    pub original: &'a syn::DeriveInput,
+    pub variants: Vec<&'a syn::Variant>,
+}
+
+impl<'a> Enum<'a> {
+    fn from_syn(node: &'a syn::DeriveInput, data: &'a syn::DataEnum) -> Self {
+        use std::iter::FromIterator;
+        Enum {
+            original: node,
+            variants: Vec::from_iter(&data.variants),
+        }
+    }
+}
+
 pub struct Struct<'a> {
     pub original: &'a syn::DeriveInput,
     pub fields: Vec<Field<'a>>,

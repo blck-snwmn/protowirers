@@ -12,38 +12,12 @@ fn test_can_call() {
 
 #[test]
 fn test_mapping() {
-    #[derive(Clone, Copy)]
-    enum Test {
+    #[derive(Proto, Clone, Copy, PartialEq, Eq, Debug)]
+    enum TestEnum {
         Value1,
         Value2,
         Value3,
         ValueOther(i32),
-    }
-    impl protowirers::parser::VariantEnum for Test {}
-    impl From<i32> for Test {
-        fn from(i: i32) -> Self {
-            match i {
-                0 => Test::Value1,
-                1 => Test::Value2,
-                2 => Test::Value3,
-                i => Test::ValueOther(i),
-            }
-        }
-    }
-    impl From<Test> for i32 {
-        fn from(v: Test) -> Self {
-            match v {
-                Test::Value1 => 0,
-                Test::Value2 => 1,
-                Test::Value3 => 2,
-                Test::ValueOther(vv) => vv,
-            }
-        }
-    }
-    impl Default for Test {
-        fn default() -> Self {
-            Test::Value1
-        }
     }
     #[derive(Proto, Default, Clone)]
     struct Inner {
@@ -75,7 +49,7 @@ fn test_mapping() {
         #[def(field_num = 7, def_type = "bool")]
         b_bool: bool,
         #[def(field_num = 8, def_type = "enum")]
-        t_test: Test,
+        t_test_enum: TestEnum,
 
         #[def(field_num = 9, def_type = "fixed64")]
         f_fixed64: u64,
@@ -129,6 +103,7 @@ fn test_mapping() {
         assert_eq!(x.i_int32, -6423);
         assert_eq!(x.i_int64, 234242);
         assert!(x.b_bool);
+        assert_eq!(x.t_test_enum, TestEnum::Value2);
         assert_eq!(x.f_fixed64, 443);
         assert_eq!(x.s_sfixed64, -677);
         let error_margin_f64 = f64::EPSILON;
