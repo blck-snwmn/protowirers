@@ -84,13 +84,19 @@ fn gen_enum(data: Enum, input_indent: syn::Ident) -> proc_macro2::TokenStream {
 
     let last_index = data.variants.len() - 1;
     // TODO とりあえず unwrap
+    // default は先頭要素
     let first_ident = data.variants.first().unwrap();
+
     let idents: Vec<(usize, &syn::Ident)> = data
         .variants
         .iter()
         .enumerate()
         .map(|(index, v)| (index, &v.ident))
         .collect();
+
+    // 最後の要素以外は引数を持たない
+    // 最後の要素は１つだけ引数を持つ
+    // TODO これをチェックすること！
     let froms = idents.iter().map(|(index, i)| {
         if *index == last_index {
             quote! { i => #input_indent::#i(i)}
