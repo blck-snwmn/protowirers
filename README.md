@@ -26,5 +26,5 @@ Implement the following function
 
 ```rust
 fn parse(bytes: &[u8])->anyhow::Result<Self>{}
-fn bytes(&self)-> anyhow::Result<Vec<u8>>
+fn bytes(&self)-> anyhow::Result<Vec<u8>>{}
 ```
