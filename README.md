@@ -34,6 +34,7 @@ fn bytes(&self)-> anyhow::Result<Vec<u8>>{}
 ### Enum
 
 Specify `Proto`
+Last Variants must be tupple to have 1 args(i32).
 
 ```rust
 #[derive(Proto, Clone, Copy, PartialEq, Eq, Debug)]
