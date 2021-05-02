@@ -4,6 +4,15 @@ use anyhow::Result;
 use std::convert::TryFrom;
 use thiserror::Error;
 
+pub trait VariantEnum: Sized + From<i32> + Into<i32> + Copy {
+    fn from_i32(input: i32) -> Self {
+        input.into()
+    }
+    fn into_i32(self) -> i32 {
+        self.into()
+    }
+}
+
 pub trait VariantToValue: Sized {
     fn from_valint(input: u128, ty: TypeVairant) -> Result<Self>;
     fn to_variant(&self, ty: TypeVairant) -> Result<u128>;
@@ -163,6 +172,38 @@ impl VariantToValue for bool {
             }
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?}",TypeVairant::Bool},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+}
+
+impl<T: VariantEnum> VariantToValue for T {
+    fn from_valint(input: u128, ty: TypeVairant) -> Result<Self> {
+        match ty {
+            TypeVairant::Enum => {
+                if input > u32::MAX as u128 {
+                    return Err(anyhow::anyhow!(
+                        "unexpected value. this value is greater than {}(u64::MAX)",
+                        u32::MAX
+                    ));
+                }
+                Ok((input as i32).into())
+            }
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeVairant::Enum},
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+
+    fn to_variant(&self, ty: TypeVairant) -> Result<u128> {
+        match ty {
+            TypeVairant::Enum => Ok(self.into_i32() as u128),
+            _ => Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeVairant::Enum},
                 got: format! {"{:?}", ty},
             }
             .into()),

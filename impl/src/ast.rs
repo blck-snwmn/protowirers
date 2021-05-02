@@ -378,6 +378,7 @@ pub enum DefType {
     Sint32,
     Sint64,
     Bool,
+    Enum,
     Fixed64,
     Sfixed64,
     Double,
@@ -399,6 +400,7 @@ impl DefType {
             "sint32" => Some(DefType::Sint32),
             "sint64" => Some(DefType::Sint64),
             "bool" => Some(DefType::Bool),
+            "enum" => Some(DefType::Enum),
             "fixed64" => Some(DefType::Fixed64),
             "sfixed64" => Some(DefType::Sfixed64),
             "double" => Some(DefType::Double),
@@ -423,6 +425,9 @@ impl DefType {
             DefType::Sint32 => "i32",
             DefType::Sint64 => "i64",
             DefType::Bool => "bool",
+            DefType::Enum => {
+                return true;
+            }
             DefType::String => "String",
             DefType::Bytes => "u8",
             DefType::EmbeddedMessages => {
@@ -447,6 +452,7 @@ impl DefType {
             DefType::Sint32 => quote! {protowirers::wire::TypeVairant::Sint32},
             DefType::Sint64 => quote! {protowirers::wire::TypeVairant::Sint64},
             DefType::Bool => quote! {protowirers::wire::TypeVairant::Bool},
+            DefType::Enum => quote! {protowirers::wire::TypeVairant::Enum},
             DefType::String => quote! {protowirers::wire::TypeLengthDelimited::WireString},
             DefType::Bytes => quote! {protowirers::wire::TypeLengthDelimited::Bytes},
             DefType::EmbeddedMessages => {
@@ -469,7 +475,8 @@ impl DefType {
             | DefType::Uint64
             | DefType::Sint32
             | DefType::Sint64
-            | DefType::Bool => {
+            | DefType::Bool
+            | DefType::Enum => {
                 quote! {protowirers::wire::WireData::Varint}
             }
             DefType::String | DefType::Bytes | DefType::EmbeddedMessages => {
