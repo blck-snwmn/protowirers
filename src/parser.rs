@@ -247,6 +247,109 @@ impl Bit64ToValue for f64 {
     }
 }
 
+pub trait LengthDelimitedToValue: Sized {
+    // TODO ここスライスのほうがいいきはする
+    fn from_length_delimited(input: Vec<u8>, ty: TypeLengthDelimited) -> Result<Self>;
+    fn into_length_delimited(self, ty: TypeLengthDelimited) -> Result<Vec<u8>>;
+}
+
+impl LengthDelimitedToValue for String {
+    fn from_length_delimited(input: Vec<u8>, ty: TypeLengthDelimited) -> Result<Self> {
+        if !matches!(ty, TypeLengthDelimited::WireString) {
+            return Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeLengthDelimited::WireString},
+                got: format! {"{:?}", ty},
+            }
+            .into());
+        }
+        let s = String::from_utf8(input)?;
+        Ok(s)
+    }
+
+    fn into_length_delimited(self, ty: TypeLengthDelimited) -> Result<Vec<u8>> {
+        if !matches!(ty, TypeLengthDelimited::WireString) {
+            return Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}",TypeLengthDelimited::WireString},
+                got: format! {"{:?}", ty},
+            }
+            .into());
+        }
+        Ok(self.into())
+    }
+}
+
+impl<T: VariantToValue> LengthDelimitedToValue for Vec<T> {
+    fn from_length_delimited(input: Vec<u8>, ty: TypeLengthDelimited) -> Result<Self> {
+        match ty {
+            TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(v)) => {
+                let x = decode_variants_slice(&input)?;
+                let x = x
+                    .iter()
+                    .try_fold(Vec::with_capacity(x.len()), |mut acc, xx| {
+                        T::from_valint(*xx, v).map(|x| {
+                            acc.push(x);
+                            acc
+                        })
+                    })?;
+                Ok(x)
+            }
+            _ => Err(ParseError::UnexpectTypeError {
+                want: "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
+                    .to_string(),
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+
+    fn into_length_delimited(self, ty: TypeLengthDelimited) -> Result<Vec<u8>> {
+        match ty {
+            TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(tv)) => {
+                let input = self.iter().try_fold(Vec::new(), |mut acc, x| {
+                    x.to_variant(tv).map(|x| {
+                        acc.push(x);
+                        acc
+                    })
+                })?;
+                let mut v = Vec::new();
+                encode_repeat(&mut v, input)?;
+                Ok(v)
+            }
+            _ => Err(ParseError::UnexpectTypeError {
+                want: "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
+                    .to_string(),
+                got: format! {"{:?}", ty},
+            }
+            .into()),
+        }
+    }
+}
+
+impl<T: Proto> LengthDelimitedToValue for T {
+    fn from_length_delimited(input: Vec<u8>, ty: TypeLengthDelimited) -> Result<Self> {
+        if !matches!(ty, TypeLengthDelimited::EmbeddedMessages) {
+            return Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}", TypeLengthDelimited::EmbeddedMessages},
+                got: format! {"{:?}", ty},
+            }
+            .into());
+        }
+        let r = T::parse(input.as_slice())?;
+        Ok(r)
+    }
+
+    fn into_length_delimited(self, ty: TypeLengthDelimited) -> Result<Vec<u8>> {
+        if !matches!(ty, TypeLengthDelimited::EmbeddedMessages) {
+            return Err(ParseError::UnexpectTypeError {
+                want: format! {"{:?}", TypeLengthDelimited::EmbeddedMessages},
+                got: format! {"{:?}", ty},
+            }
+            .into());
+        }
+        self.bytes()
+    }
+}
+
 pub trait Bit32ToValue: Sized {
     fn from_bit64(input: [u8; 4], ty: TypeBit32) -> Result<Self>;
     fn to_bit64(&self, ty: TypeBit32) -> Result<[u8; 4]>;
@@ -336,101 +439,102 @@ pub trait Parser<Output>: Sized {
     fn from(input: Output, ty: Self::Type) -> Result<Self>;
 }
 
-impl Parser<String> for WireDataLengthDelimited {
-    type Type = TypeLengthDelimited;
-    fn parse(&self, ty: Self::Type) -> Result<String> {
-        if !matches!(ty, TypeLengthDelimited::WireString) {
-            return Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeLengthDelimited::WireString},
-                got: format! {"{:?}", ty},
-            }
-            .into());
-        }
-        let s = String::from_utf8(self.value.clone())?;
-        Ok(s)
-    }
+// impl Parser<String> for WireDataLengthDelimited {
+//     type Type = TypeLengthDelimited;
+//     fn parse(&self, ty: Self::Type) -> Result<String> {
+//         if !matches!(ty, TypeLengthDelimited::WireString) {
+//             return Err(ParseError::UnexpectTypeError {
+//                 want: format! {"{:?}",TypeLengthDelimited::WireString},
+//                 got: format! {"{:?}", ty},
+//             }
+//             .into());
+//         }
+//         let s = String::from_utf8(self.value.clone())?;
+//         Ok(s)
+//     }
 
-    fn from(input: String, ty: Self::Type) -> Result<Self> {
-        if !matches!(ty, TypeLengthDelimited::WireString) {
-            return Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeLengthDelimited::WireString},
-                got: format! {"{:?}", ty},
-            }
-            .into());
-        }
-        Ok(Self {
-            value: (input.into()),
-        })
-    }
-}
+//     fn from(input: String, ty: Self::Type) -> Result<Self> {
+//         if !matches!(ty, TypeLengthDelimited::WireString) {
+//             return Err(ParseError::UnexpectTypeError {
+//                 want: format! {"{:?}",TypeLengthDelimited::WireString},
+//                 got: format! {"{:?}", ty},
+//             }
+//             .into());
+//         }
+//         Ok(Self {
+//             value: (input.into()),
+//         })
+//     }
+// }
 
-impl<T: VariantToValue> Parser<Vec<T>> for WireDataLengthDelimited {
-    type Type = TypeLengthDelimited;
-    fn parse(&self, ty: Self::Type) -> Result<Vec<T>> {
-        match ty {
-            TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(v)) => {
-                let x = decode_variants_slice(&self.value)?;
-                let x = x
-                    .iter()
-                    .try_fold(Vec::with_capacity(x.len()), |mut acc, xx| {
-                        T::from_valint(*xx, v).map(|x| {
-                            acc.push(x);
-                            acc
-                        })
-                    })?;
-                Ok(x)
-            }
-            _ => Err(ParseError::UnexpectTypeError {
-                want: "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
-                    .to_string(),
-                got: format! {"{:?}", ty},
-            }
-            .into()),
-        }
-    }
+// impl<T: VariantToValue> Parser<Vec<T>> for WireDataLengthDelimited {
+//     type Type = TypeLengthDelimited;
+//     fn parse(&self, ty: Self::Type) -> Result<Vec<T>> {
+//         match ty {
+//             TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(v)) => {
+//                 let x = decode_variants_slice(&self.value)?;
+//                 let x = x
+//                     .iter()
+//                     .try_fold(Vec::with_capacity(x.len()), |mut acc, xx| {
+//                         T::from_valint(*xx, v).map(|x| {
+//                             acc.push(x);
+//                             acc
+//                         })
+//                     })?;
+//                 Ok(x)
+//             }
+//             _ => Err(ParseError::UnexpectTypeError {
+//                 want: "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
+//                     .to_string(),
+//                 got: format! {"{:?}", ty},
+//             }
+//             .into()),
+//         }
+//     }
 
-    fn from(input: Vec<T>, ty: Self::Type) -> Result<Self> {
-        match ty {
-            TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(tv)) => {
-                let input = input.iter().try_fold(Vec::new(), |mut acc, x| {
-                    x.to_variant(tv).map(|x| {
-                        acc.push(x);
-                        acc
-                    })
-                })?;
-                let mut v = Vec::new();
-                encode_repeat(&mut v, input)?;
-                Ok(Self { value: v })
-            }
-            _ => Err(ParseError::UnexpectTypeError {
-                want: "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
-                    .to_string(),
-                got: format! {"{:?}", ty},
-            }
-            .into()),
-        }
-    }
-}
-impl<T: Proto> Parser<T> for WireDataLengthDelimited {
-    type Type = TypeLengthDelimited;
-    fn parse(&self, ty: Self::Type) -> Result<T> {
-        if !matches!(ty, TypeLengthDelimited::EmbeddedMessages) {
-            return Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}", TypeLengthDelimited::EmbeddedMessages},
-                got: format! {"{:?}", ty},
-            }
-            .into());
-        }
-        let r = T::parse(self.value.as_slice())?;
-        Ok(r)
-    }
+//     fn from(input: Vec<T>, ty: Self::Type) -> Result<Self> {
+//         match ty {
+//             TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(tv)) => {
+//                 let input = input.iter().try_fold(Vec::new(), |mut acc, x| {
+//                     x.to_variant(tv).map(|x| {
+//                         acc.push(x);
+//                         acc
+//                     })
+//                 })?;
+//                 let mut v = Vec::new();
+//                 encode_repeat(&mut v, input)?;
+//                 Ok(Self { value: v })
+//             }
+//             _ => Err(ParseError::UnexpectTypeError {
+//                 want: "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
+//                     .to_string(),
+//                 got: format! {"{:?}", ty},
+//             }
+//             .into()),
+//         }
+//     }
+// }
 
-    fn from(input: T, _: Self::Type) -> Result<Self> {
-        Ok(Self {
-            value: input.bytes()?,
-        })
-    }
-}
+// impl<T: Proto> Parser<T> for WireDataLengthDelimited {
+//     type Type = TypeLengthDelimited;
+//     fn parse(&self, ty: Self::Type) -> Result<T> {
+//         if !matches!(ty, TypeLengthDelimited::EmbeddedMessages) {
+//             return Err(ParseError::UnexpectTypeError {
+//                 want: format! {"{:?}", TypeLengthDelimited::EmbeddedMessages},
+//                 got: format! {"{:?}", ty},
+//             }
+//             .into());
+//         }
+//         let r = T::parse(self.value.as_slice())?;
+//         Ok(r)
+//     }
+
+//     fn from(input: T, _: Self::Type) -> Result<Self> {
+//         Ok(Self {
+//             value: input.bytes()?,
+//         })
+//     }
+// }
 
 impl<T: VariantToValue> Parser<T> for WireDataVarint {
     type Type = TypeVairant;
@@ -454,6 +558,20 @@ impl<T: Bit64ToValue> Parser<T> for WireDataBit64 {
     fn from(input: T, ty: Self::Type) -> Result<Self> {
         Ok(Self {
             value: input.to_bit64(ty)?,
+        })
+    }
+}
+
+impl<T: LengthDelimitedToValue> Parser<T> for WireDataLengthDelimited {
+    type Type = TypeLengthDelimited;
+    fn parse(&self, ty: Self::Type) -> Result<T> {
+        // TODO remove clone
+        T::from_length_delimited(self.value.clone(), ty)
+    }
+
+    fn from(input: T, ty: Self::Type) -> Result<Self> {
+        Ok(Self {
+            value: input.into_length_delimited(ty)?,
         })
     }
 }
