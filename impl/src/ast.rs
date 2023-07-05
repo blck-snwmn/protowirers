@@ -119,7 +119,7 @@ impl<'a> Field<'a> {
         // }
         if !attr.allows_rust_type(ty) {
             return Err(syn::Error::new_spanned(
-                &ty,
+                ty,
                 format!(
                     "defined def_type `{:?}` does not match this Rust type",
                     attr.def_type,
@@ -461,7 +461,7 @@ impl DefType {
         rust_type == ty
     }
 
-    fn to_input_wire_data_type(&self) -> proc_macro2::TokenStream {
+    fn to_input_wire_data_type(self) -> proc_macro2::TokenStream {
         match &self {
             DefType::Int32 => quote! {protowirers::wire::TypeVairant::Int32},
             DefType::Int64 => quote! {protowirers::wire::TypeVairant::Int64},
@@ -485,7 +485,7 @@ impl DefType {
         }
     }
 
-    fn to_corresponding_wire_type(&self) -> proc_macro2::TokenStream {
+    fn to_corresponding_wire_type(self) -> proc_macro2::TokenStream {
         match &self {
             DefType::Int32
             | DefType::Int64
