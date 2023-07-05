@@ -4,7 +4,7 @@ use syn::DeriveInput;
 
 pub fn derive(node: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let input_indent = format_ident!("{}", node.ident);
-    match Input::from_syn(&node)? {
+    match Input::from_syn(node)? {
         Input::Struct(data) => Ok(gen_struct(data, input_indent)),
         Input::Enum(data) => Ok(gen_enum(data, input_indent)),
     }

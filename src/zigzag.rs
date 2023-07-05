@@ -10,7 +10,7 @@ pub(crate) fn encode<T: ZigZag>(n: T) -> T::Output {
 pub(crate) fn decode(n: u128) -> i128 {
     let r = (n >> 1) as i128;
     let l = (n & 1) as i128;
-    (r ^ -l) as i128
+    (r ^ -l)
 }
 
 // pub(crate) fn decode_ex<T, U, V>(n: T) -> V

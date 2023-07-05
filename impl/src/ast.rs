@@ -228,7 +228,7 @@ impl<'a> Attribute<'a> {
             ));
         } else if a.len() > 1 {
             return Err(syn::Error::new_spanned(
-                &with_field,
+                with_field,
                 "only one #[def(...)] attribute is allowed",
             ));
         }
@@ -249,7 +249,7 @@ impl<'a> Attribute<'a> {
                     Some(ident) if ident == "repeated" => {
                         if repeated.is_some() {
                             return Err(syn::Error::new_spanned(
-                                &path_meta,
+                                path_meta,
                                 "repeated is duplicated in #[def(...)]. ",
                             ));
                         }
@@ -258,7 +258,7 @@ impl<'a> Attribute<'a> {
                     Some(ident) if ident == "packed" => {
                         if packed.is_some() {
                             return Err(syn::Error::new_spanned(
-                                &path_meta,
+                                path_meta,
                                 "packed is duplicated in #[def(...)]. ",
                             ));
                         }
@@ -273,7 +273,7 @@ impl<'a> Attribute<'a> {
                 },
                 syn::Meta::List(ml) => {
                     return Err(syn::Error::new_spanned(
-                        &ml,
+                        ml,
                         "list meta data is not suported.",
                     ));
                 }
@@ -281,7 +281,7 @@ impl<'a> Attribute<'a> {
                     if named_value.path.is_ident("field_num") {
                         if filed_num.is_some() {
                             return Err(syn::Error::new_spanned(
-                                &named_value,
+                                named_value,
                                 "field_num is duplicated in #[def(...)]. ",
                             ));
                         }
@@ -299,7 +299,7 @@ impl<'a> Attribute<'a> {
                     } else if named_value.path.is_ident("def_type") {
                         if def_type.is_some() {
                             return Err(syn::Error::new_spanned(
-                                &named_value,
+                                named_value,
                                 "def_type is duplicated in #[def(...)].",
                             ));
                         }
