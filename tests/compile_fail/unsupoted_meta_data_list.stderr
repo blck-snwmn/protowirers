@@ -1,5 +1,5 @@
-error: list meta data is not suported.
- --> $DIR/unsupoted_meta_data_list.rs:5:28
+error: expected `=`
+ --> $DIR/unsupoted_meta_data_list.rs:5:36
   |
 5 |     #[def(field_num = 100, def_type("int32", "int32"))]
-  |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |                                    ^
