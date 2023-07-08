@@ -246,24 +246,24 @@ impl<'a> Attribute<'a> {
             };
             match meta {
                 syn::Meta::Path(path_meta) => match path_meta.get_ident() {
-                    Some(ident) if ident == "repeated" => {
-                        if repeated.is_some() {
+                    Some(ident) if ident == "repeated" => match repeated {
+                        Some(_) => {
                             return Err(syn::Error::new_spanned(
                                 path_meta,
                                 "repeated is duplicated in #[def(...)]. ",
                             ));
                         }
-                        repeated = Some(());
-                    }
-                    Some(ident) if ident == "packed" => {
-                        if packed.is_some() {
+                        None => repeated = Some(()),
+                    },
+                    Some(ident) if ident == "packed" => match packed {
+                        Some(_) => {
                             return Err(syn::Error::new_spanned(
                                 path_meta,
                                 "packed is duplicated in #[def(...)]. ",
                             ));
                         }
-                        packed = Some(());
-                    }
+                        None => packed = Some(()),
+                    },
                     _ => {
                         return Err(syn::Error::new_spanned(
                             path_meta,
