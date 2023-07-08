@@ -241,9 +241,9 @@ impl<'a> Attribute<'a> {
         let mut packed: Option<()> = None;
         for nested_meta in &meta_list.nested {
             let meta = match nested_meta {
-                syn::NestedMeta::Meta(meta) => Ok(meta),
-                _ => Err(syn::Error::new_spanned(nested_meta, "unsported meta data.")),
-            }?;
+                syn::NestedMeta::Meta(meta) => meta,
+                _ => return Err(syn::Error::new_spanned(nested_meta, "unsported meta data.")),
+            };
             match meta {
                 syn::Meta::Path(path_meta) => match path_meta.get_ident() {
                     Some(ident) if ident == "repeated" => {
@@ -286,12 +286,14 @@ impl<'a> Attribute<'a> {
                             ));
                         }
                         let v = match named_value.lit {
-                            syn::Lit::Int(ref v) => Ok(v),
-                            _ => Err(syn::Error::new_spanned(
-                                &named_value.lit,
-                                "invalid value. value is integer only.",
-                            )),
-                        }?;
+                            syn::Lit::Int(ref v) => v,
+                            _ => {
+                                return Err(syn::Error::new_spanned(
+                                    &named_value.lit,
+                                    "invalid value. value is integer only.",
+                                ))
+                            }
+                        };
                         let v = v.base10_parse::<u64>().map_err(|e| {
                             syn::Error::new(v.span(), format!("faild to parse u64: {}", e))
                         })?;
@@ -352,38 +354,36 @@ impl<'a> Attribute<'a> {
     }
 
     fn allows_rust_type(&self, ty: &syn::Type) -> bool {
-        match *ty {
-            syn::Type::Path(ref p) => Some(&p.path),
-            _ => None,
+        let p = match *ty {
+            syn::Type::Path(ref p) => &p.path,
+            _ => return false,
+        };
+        if let Some(ident) = p.get_ident() {
+            return self.def_type.allows_rust_type(&ident.to_string());
         }
-        .and_then(|p| {
-            // ident が取れるならそれをもとに型を。そうでない場合、Vecに指定されている型を採用
-            p.get_ident().or_else(|| {
-                if !(self.def_type.is_allows_vec() || self.packed && self.repeated) {
-                    return None;
-                }
-                p.segments
-                    .iter()
-                    // Vec限定
-                    .find(|x| x.ident == "Vec")
-                    .and_then(|x| match &x.arguments {
-                        syn::PathArguments::AngleBracketed(ab) => Some(ab),
-                        _ => None,
-                    })
-                    .and_then(|abga| {
-                        abga.args.iter().find_map(|ga| match ga {
-                            syn::GenericArgument::Type(t) => Some(t),
-                            _ => None,
-                        })
-                    })
-                    .and_then(|t| match t {
-                        syn::Type::Path(tp) => tp.path.get_ident(),
-                        _ => None,
-                    })
+        if !(self.def_type.is_allows_vec() || self.packed && self.repeated) {
+            return false;
+        }
+        p.segments
+            .iter()
+            // Vec限定
+            .find(|x| x.ident == "Vec")
+            .and_then(|x| match &x.arguments {
+                syn::PathArguments::AngleBracketed(ab) => Some(ab),
+                _ => None,
             })
-        })
-        .map(|i| self.def_type.allows_rust_type(&i.to_string()))
-        .unwrap_or_default()
+            .and_then(|abga| {
+                abga.args.iter().find_map(|ga| match ga {
+                    syn::GenericArgument::Type(t) => Some(t),
+                    _ => None,
+                })
+            })
+            .and_then(|t| match t {
+                syn::Type::Path(tp) => tp.path.get_ident(),
+                _ => None,
+            })
+            .map(|i| self.def_type.allows_rust_type(&i.to_string()))
+            .unwrap_or_default()
     }
 }
 
