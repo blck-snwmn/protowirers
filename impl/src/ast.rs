@@ -251,6 +251,7 @@ impl<'a> Attribute<'a> {
                     .base10_parse::<u64>()
                     .map_err(|e| syn::Error::new(v.span(), format!("faild to parse u64: {}", e)))?;
                 filed_num = Some(v);
+                return Ok(());
             }
             if nested_meta.path.is_ident("def_type") {
                 let value = nested_meta.value()?;
@@ -270,6 +271,7 @@ impl<'a> Attribute<'a> {
                         ))
                     }
                 }
+                return Ok(());
             }
             if nested_meta.path.is_ident("repeated") {
                 if repeated.is_some() {
@@ -279,6 +281,7 @@ impl<'a> Attribute<'a> {
                     ));
                 }
                 repeated = Some(());
+                return Ok(());
             }
             if nested_meta.path.is_ident("packed") {
                 if packed.is_some() {
@@ -288,8 +291,10 @@ impl<'a> Attribute<'a> {
                     ));
                 }
                 packed = Some(());
+                return Ok(());
             }
-            Ok(())
+            nested_meta.value()?.parse::<syn::Lit>()?;
+            Err(nested_meta.error("unsuported meta data in #[def(...)]. "))
         })?;
 
         if filed_num.is_none() {
