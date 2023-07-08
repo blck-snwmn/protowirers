@@ -239,31 +239,24 @@ impl<'a> Attribute<'a> {
 
         meta_list.parse_nested_meta(|nested_meta| {
             if nested_meta.path.is_ident("field_num") {
-                if filed_num.is_some() {
-                    return Err(syn::Error::new_spanned(
-                        nested_meta.path,
-                        "field_num is duplicated in #[def(...)]. ",
-                    ));
-                }
                 let value = nested_meta.value()?;
                 let v: syn::LitInt = value.parse()?;
-                println!("LitIntz");
 
+                if filed_num.is_some() {
+                    return Err(nested_meta.error("field_num is duplicated in #[def(...)]. "));
+                }
                 let v = v
                     .base10_parse::<u64>()
                     .map_err(|e| syn::Error::new(v.span(), format!("faild to parse u64: {}", e)))?;
                 filed_num = Some(v);
             }
             if nested_meta.path.is_ident("def_type") {
-                println!("def_typexxxx");
-                if def_type.is_some() {
-                    return Err(syn::Error::new_spanned(
-                        nested_meta.path,
-                        "def_type is duplicated in #[def(...)].",
-                    ));
-                }
                 let value = nested_meta.value()?;
                 let v: syn::LitStr = value.parse()?;
+
+                if def_type.is_some() {
+                    return Err(nested_meta.error("def_type is duplicated in #[def(...)]."));
+                }
                 match DefType::new(v.value()) {
                     Some(dt) => def_type = Some(dt),
                     None => {
