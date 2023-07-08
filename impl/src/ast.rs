@@ -322,38 +322,36 @@ impl<'a> Attribute<'a> {
     }
 
     fn allows_rust_type(&self, ty: &syn::Type) -> bool {
-        match *ty {
-            syn::Type::Path(ref p) => Some(&p.path),
-            _ => None,
+        let p = match *ty {
+            syn::Type::Path(ref p) => &p.path,
+            _ => return false,
+        };
+        if let Some(ident) = p.get_ident() {
+            return self.def_type.allows_rust_type(&ident.to_string());
         }
-        .and_then(|p| {
-            // ident が取れるならそれをもとに型を。そうでない場合、Vecに指定されている型を採用
-            p.get_ident().or_else(|| {
-                if !(self.def_type.is_allows_vec() || self.packed && self.repeated) {
-                    return None;
-                }
-                p.segments
-                    .iter()
-                    // Vec限定
-                    .find(|x| x.ident == "Vec")
-                    .and_then(|x| match &x.arguments {
-                        syn::PathArguments::AngleBracketed(ab) => Some(ab),
-                        _ => None,
-                    })
-                    .and_then(|abga| {
-                        abga.args.iter().find_map(|ga| match ga {
-                            syn::GenericArgument::Type(t) => Some(t),
-                            _ => None,
-                        })
-                    })
-                    .and_then(|t| match t {
-                        syn::Type::Path(tp) => tp.path.get_ident(),
-                        _ => None,
-                    })
+        if !(self.def_type.is_allows_vec() || self.packed && self.repeated) {
+            return false;
+        }
+        p.segments
+            .iter()
+            // Vec限定
+            .find(|x| x.ident == "Vec")
+            .and_then(|x| match &x.arguments {
+                syn::PathArguments::AngleBracketed(ab) => Some(ab),
+                _ => None,
             })
-        })
-        .map(|i| self.def_type.allows_rust_type(&i.to_string()))
-        .unwrap_or_default()
+            .and_then(|abga| {
+                abga.args.iter().find_map(|ga| match ga {
+                    syn::GenericArgument::Type(t) => Some(t),
+                    _ => None,
+                })
+            })
+            .and_then(|t| match t {
+                syn::Type::Path(tp) => tp.path.get_ident(),
+                _ => None,
+            })
+            .map(|i| self.def_type.allows_rust_type(&i.to_string()))
+            .unwrap_or_default()
     }
 }
 
