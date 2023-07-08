@@ -1,5 +1,4 @@
 use quote::quote;
-use syn::MetaList;
 pub enum Input<'a> {
     Struct(Struct<'a>),
     Enum(Enum<'a>),
@@ -214,25 +213,9 @@ impl<'a> Attribute<'a> {
     fn from_syn(attrs: &'a [syn::Attribute], with_field: &syn::Field) -> syn::Result<Self> {
         let mut a: Vec<(&'a syn::Attribute, syn::MetaList)> = attrs
             .iter()
-            .filter_map(|attr| {
-                let mut repr_packed = None::<syn::MetaList>;
-                attr.parse_nested_meta(|m| {
-                    let v = m.value()?;
-                    let meta: syn::Meta = v.parse()?;
-                    if let syn::Meta::List(ml) = meta {
-                        if ml.path.is_ident("def") {
-                            repr_packed = Some(ml);
-                        }
-                    }
-                    Ok(())
-                })
-                .ok()?;
-                repr_packed.map(|ml| (attr, ml))
-                // let ml = attr.parse_args::<syn::Meta>().ok().and_then(|m| match m {
-                //     syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
-                //     _ => None,
-                // })?;
-                // Some((attr, ml))
+            .filter_map(|attr| match attr.meta {
+                syn::Meta::List(ref ml) if ml.path.is_ident("def") => Some((attr, ml.clone())),
+                _ => None,
             })
             .collect();
         if a.is_empty() {
