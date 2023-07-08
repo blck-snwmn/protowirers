@@ -240,7 +240,9 @@ impl<'a> Attribute<'a> {
         meta_list.parse_nested_meta(|nested_meta| {
             if nested_meta.path.is_ident("field_num") {
                 let value = nested_meta.value()?;
-                let v: syn::LitInt = value.parse()?;
+                let v: syn::LitInt = value.parse().map_err(|e| {
+                    syn::Error::new(e.span(), "invalid value. value is integer only.")
+                })?;
 
                 if filed_num.is_some() {
                     return Err(nested_meta.error("field_num is duplicated in #[def(...)]. "));
@@ -252,7 +254,9 @@ impl<'a> Attribute<'a> {
             }
             if nested_meta.path.is_ident("def_type") {
                 let value = nested_meta.value()?;
-                let v: syn::LitStr = value.parse()?;
+                let v: syn::LitStr = value.parse().or(Err(
+                    nested_meta.error("invalid value. value is integer only.")
+                ))?;
 
                 if def_type.is_some() {
                     return Err(nested_meta.error("def_type is duplicated in #[def(...)]."));
@@ -260,8 +264,8 @@ impl<'a> Attribute<'a> {
                 match DefType::new(v.value()) {
                     Some(dt) => def_type = Some(dt),
                     None => {
-                        return Err(syn::Error::new_spanned(
-                            nested_meta.path,
+                        return Err(syn::Error::new(
+                            v.span(),
                             format!("no suport def_type. got=`{}`.", v.value()),
                         ))
                     }
