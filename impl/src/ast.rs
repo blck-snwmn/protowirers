@@ -274,24 +274,28 @@ impl<'a> Attribute<'a> {
                 return Ok(());
             }
             if nested_meta.path.is_ident("repeated") {
-                if repeated.is_some() {
-                    return Err(syn::Error::new_spanned(
+                return match repeated {
+                    Some(_) => Err(syn::Error::new_spanned(
                         nested_meta.path,
                         "repeated is duplicated in #[def(...)]. ",
-                    ));
-                }
-                repeated = Some(());
-                return Ok(());
+                    )),
+                    None => {
+                        repeated = Some(());
+                        Ok(())
+                    }
+                };
             }
             if nested_meta.path.is_ident("packed") {
-                if packed.is_some() {
-                    return Err(syn::Error::new_spanned(
+                return match packed {
+                    Some(_) => Err(syn::Error::new_spanned(
                         nested_meta.path,
                         "packed is duplicated in #[def(...)]. ",
-                    ));
-                }
-                packed = Some(());
-                return Ok(());
+                    )),
+                    None => {
+                        packed = Some(());
+                        Ok(())
+                    }
+                };
             }
             nested_meta.value()?.parse::<syn::Lit>()?;
             Err(nested_meta.error("unsuported meta data in #[def(...)]. "))
