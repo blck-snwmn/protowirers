@@ -294,10 +294,15 @@ impl<'a> Attribute<'a> {
                                 ))
                             }
                         };
-                        let v = v.base10_parse::<u64>().map_err(|e| {
-                            syn::Error::new(v.span(), format!("faild to parse u64: {}", e))
-                        })?;
-                        filed_num = Some(v);
+                        match v.base10_parse::<u64>() {
+                            Ok(v) => filed_num = Some(v),
+                            Err(e) => {
+                                return Err(syn::Error::new(
+                                    v.span(),
+                                    format!("faild to parse u64: {}", e),
+                                ))
+                            }
+                        }
                     } else if named_value.path.is_ident("def_type") {
                         if def_type.is_some() {
                             return Err(syn::Error::new_spanned(
@@ -305,19 +310,24 @@ impl<'a> Attribute<'a> {
                                 "def_type is duplicated in #[def(...)].",
                             ));
                         }
-                        let v = match named_value.lit {
-                            syn::Lit::Str(ref v) => DefType::new(v.value()).ok_or_else(|| {
-                                syn::Error::new_spanned(
+                        let ls = match named_value.lit {
+                            syn::Lit::Str(ref ls) => ls,
+                            _ => {
+                                return Err(syn::Error::new_spanned(
                                     &named_value.lit,
-                                    format!("no suport def_type. got=`{}`.", v.value()),
-                                )
-                            }),
-                            _ => Err(syn::Error::new_spanned(
-                                &named_value.lit,
-                                "invalid num of sub field in #[def(...)]. ",
-                            )),
-                        }?;
-                        def_type = Some(v);
+                                    "invalid num of sub field in #[def(...)]. ",
+                                ))
+                            }
+                        };
+                        match DefType::new(ls.value()) {
+                            Some(dt) => def_type = Some(dt),
+                            None => {
+                                return Err(syn::Error::new_spanned(
+                                    &named_value.lit,
+                                    format!("no suport def_type. got=`{}`.", ls.value()),
+                                ))
+                            }
+                        }
                     } else {
                         // unsuported attribute metadata
                         return Err(syn::Error::new_spanned(
