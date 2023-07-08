@@ -213,12 +213,9 @@ impl<'a> Attribute<'a> {
     fn from_syn(attrs: &'a [syn::Attribute], with_field: &syn::Field) -> syn::Result<Self> {
         let mut a: Vec<(&'a syn::Attribute, syn::MetaList)> = attrs
             .iter()
-            .filter_map(|attr| {
-                let ml = attr.parse_meta().ok().and_then(|m| match m {
-                    syn::Meta::List(ml) if ml.path.is_ident("def") => Some(ml),
-                    _ => None,
-                })?;
-                Some((attr, ml))
+            .filter_map(|attr| match attr.meta {
+                syn::Meta::List(ref ml) if ml.path.is_ident("def") => Some((attr, ml.clone())),
+                _ => None,
             })
             .collect();
         if a.is_empty() {
@@ -239,105 +236,66 @@ impl<'a> Attribute<'a> {
         let mut def_type: Option<DefType> = None;
         let mut repeated: Option<()> = None;
         let mut packed: Option<()> = None;
-        for nested_meta in &meta_list.nested {
-            let meta = match nested_meta {
-                syn::NestedMeta::Meta(meta) => meta,
-                _ => return Err(syn::Error::new_spanned(nested_meta, "unsported meta data.")),
-            };
-            match meta {
-                syn::Meta::Path(path_meta) => match path_meta.get_ident() {
-                    Some(ident) if ident == "repeated" => match repeated {
-                        Some(_) => {
-                            return Err(syn::Error::new_spanned(
-                                path_meta,
-                                "repeated is duplicated in #[def(...)]. ",
-                            ));
-                        }
-                        None => repeated = Some(()),
-                    },
-                    Some(ident) if ident == "packed" => match packed {
-                        Some(_) => {
-                            return Err(syn::Error::new_spanned(
-                                path_meta,
-                                "packed is duplicated in #[def(...)]. ",
-                            ));
-                        }
-                        None => packed = Some(()),
-                    },
-                    _ => {
-                        return Err(syn::Error::new_spanned(
-                            path_meta,
-                            "unsuported meta data in #[def(...)]. ",
-                        ));
+
+        meta_list.parse_nested_meta(|nested_meta| {
+            if nested_meta.path.is_ident("field_num") {
+                let value = nested_meta.value()?;
+                let v: syn::LitInt = value.parse().map_err(|e| {
+                    syn::Error::new(e.span(), "invalid value. value is integer only.")
+                })?;
+
+                if filed_num.is_some() {
+                    return Err(nested_meta.error("field_num is duplicated in #[def(...)]. "));
+                }
+                let v = v
+                    .base10_parse::<u64>()
+                    .map_err(|e| syn::Error::new(v.span(), format!("faild to parse u64: {}", e)))?;
+                filed_num = Some(v);
+                return Ok(());
+            }
+            if nested_meta.path.is_ident("def_type") {
+                let value = nested_meta.value()?;
+                let v: syn::LitStr = value.parse().or(Err(
+                    nested_meta.error("invalid value. value is integer only.")
+                ))?;
+
+                if def_type.is_some() {
+                    return Err(nested_meta.error("def_type is duplicated in #[def(...)]."));
+                }
+                match DefType::new(v.value()) {
+                    Some(dt) => def_type = Some(dt),
+                    None => {
+                        return Err(syn::Error::new(
+                            v.span(),
+                            format!("no suport def_type. got=`{}`.", v.value()),
+                        ))
                     }
-                },
-                syn::Meta::List(ml) => {
+                }
+                return Ok(());
+            }
+            if nested_meta.path.is_ident("repeated") {
+                if repeated.is_some() {
                     return Err(syn::Error::new_spanned(
-                        ml,
-                        "list meta data is not suported.",
+                        nested_meta.path,
+                        "repeated is duplicated in #[def(...)]. ",
                     ));
                 }
-                syn::Meta::NameValue(named_value) => {
-                    if named_value.path.is_ident("field_num") {
-                        if filed_num.is_some() {
-                            return Err(syn::Error::new_spanned(
-                                named_value,
-                                "field_num is duplicated in #[def(...)]. ",
-                            ));
-                        }
-                        let v = match named_value.lit {
-                            syn::Lit::Int(ref v) => v,
-                            _ => {
-                                return Err(syn::Error::new_spanned(
-                                    &named_value.lit,
-                                    "invalid value. value is integer only.",
-                                ))
-                            }
-                        };
-                        match v.base10_parse::<u64>() {
-                            Ok(v) => filed_num = Some(v),
-                            Err(e) => {
-                                return Err(syn::Error::new(
-                                    v.span(),
-                                    format!("faild to parse u64: {}", e),
-                                ))
-                            }
-                        }
-                    } else if named_value.path.is_ident("def_type") {
-                        if def_type.is_some() {
-                            return Err(syn::Error::new_spanned(
-                                named_value,
-                                "def_type is duplicated in #[def(...)].",
-                            ));
-                        }
-                        let ls = match named_value.lit {
-                            syn::Lit::Str(ref ls) => ls,
-                            _ => {
-                                return Err(syn::Error::new_spanned(
-                                    &named_value.lit,
-                                    "invalid num of sub field in #[def(...)]. ",
-                                ))
-                            }
-                        };
-                        match DefType::new(ls.value()) {
-                            Some(dt) => def_type = Some(dt),
-                            None => {
-                                return Err(syn::Error::new_spanned(
-                                    &named_value.lit,
-                                    format!("no suport def_type. got=`{}`.", ls.value()),
-                                ))
-                            }
-                        }
-                    } else {
-                        // unsuported attribute metadata
-                        return Err(syn::Error::new_spanned(
-                            named_value,
-                            "unsuported meta data in #[def(...)]. ",
-                        ));
-                    }
-                }
+                repeated = Some(());
+                return Ok(());
             }
-        }
+            if nested_meta.path.is_ident("packed") {
+                if packed.is_some() {
+                    return Err(syn::Error::new_spanned(
+                        nested_meta.path,
+                        "packed is duplicated in #[def(...)]. ",
+                    ));
+                }
+                packed = Some(());
+                return Ok(());
+            }
+            nested_meta.value()?.parse::<syn::Lit>()?;
+            Err(nested_meta.error("unsuported meta data in #[def(...)]. "))
+        })?;
 
         if filed_num.is_none() {
             // required
