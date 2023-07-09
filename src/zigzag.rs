@@ -33,11 +33,11 @@ pub trait ZigZag: Sized {
 }
 
 macro_rules! zigzag_impl {
-    ($T:ty, $OUT:ty, $SIFT:literal) => {
+    ($T:ty, $OUT:ty) => {
         impl ZigZag for $T {
             type Output = $OUT;
             fn encode(&self) -> Self::Output {
-                ((self << 1) ^ (self >> $SIFT)) as Self::Output
+                ((self << 1) ^ (self >> (<$OUT>::BITS - 1))) as Self::Output
             }
             fn decode(n: Self::Output) -> Self {
                 let r = (n >> 1) as Self;
@@ -48,9 +48,8 @@ macro_rules! zigzag_impl {
     };
 }
 
-// TODO BITS定数が来たら、SHIFTは置き換える
-zigzag_impl!(i32, u32, 31);
-zigzag_impl!(i64, u64, 63);
+zigzag_impl!(i32, u32);
+zigzag_impl!(i64, u64);
 
 // macro で実装されるのは以下。（参考までに残しておく）
 // impl ZigZag for i32 {
