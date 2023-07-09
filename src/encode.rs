@@ -7,9 +7,9 @@ use std::{
 
 use crate::wire::WireStruct;
 
+// encode_variants decode varint format
 fn encode_variants<T: std::io::Write>(data: &mut T, input: u128) -> Result<()> {
-    // 事前にbufferを確保すること
-    let mut buf: Vec<u8> = Vec::new();
+    let mut buf: Vec<u8> = Vec::with_capacity(calc_capacity(input));
     let mut input = input;
     loop {
         if input == 0 {
@@ -26,6 +26,17 @@ fn encode_variants<T: std::io::Write>(data: &mut T, input: u128) -> Result<()> {
     }
     data.write_all(buf.as_slice())?;
     Ok(())
+}
+
+// calc_capacity return capacity of buffer
+fn calc_capacity(input: u128) -> usize {
+    let mut input = input;
+    let mut capacity = 0;
+    while input != 0 {
+        input >>= 7;
+        capacity += 1;
+    }
+    capacity
 }
 
 pub(crate) fn encode_repeat<T: std::io::Write>(data: &mut T, input: Vec<u128>) -> Result<()> {
@@ -387,6 +398,36 @@ mod tests {
                     0b11110000, 0b00111111,
                 ]
             );
+        }
+    }
+    #[test]
+    fn test_calc_capacity() {
+        {
+            let input = 0b1;
+            let cap = calc_capacity(input);
+            assert_eq!(cap, 1);
+        }
+        {
+            let input = 0b1111111;
+            let cap = calc_capacity(input);
+            assert_eq!(cap, 1);
+        }
+        {
+            let input = 0b10000000;
+            let cap = calc_capacity(input);
+            assert_eq!(cap, 2);
+        }
+    }
+
+    #[test]
+    fn bit_lenght() {
+        {
+            let input: u64 = 0b11110000_00111111_u64;
+            dbg!(input);
+            let zeros = input.leading_zeros();
+            assert_eq!(zeros, 48);
+            let l = u64::BITS - zeros;
+            assert_eq!(l, 16);
         }
     }
 
