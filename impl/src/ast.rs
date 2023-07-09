@@ -297,29 +297,23 @@ impl<'a> Attribute<'a> {
                 Err(nested_meta.error("unsuported meta data in #[def(...)]. "))
             }
         })?;
-
-        if filed_num.is_none() {
-            // required
-            return Err(syn::Error::new_spanned(
+        match (filed_num, def_type) {
+            (None, _) => Err(syn::Error::new_spanned(
                 original,
                 "filed_num is required in #[def(...)]",
-            ));
-        }
-        if def_type.is_none() {
-            // required
-            return Err(syn::Error::new_spanned(
+            )), // required
+            (_, None) => Err(syn::Error::new_spanned(
                 original,
                 "def_type is required in #[def(\"...\")]",
-            ));
+            )), // required
+            _ => Ok(Self {
+                original,
+                filed_num: filed_num.unwrap(),
+                def_type: def_type.unwrap(),
+                repeated: repeated.is_some(),
+                packed: packed.is_some(),
+            }),
         }
-
-        Ok(Self {
-            original,
-            filed_num: filed_num.unwrap(),
-            def_type: def_type.unwrap(),
-            repeated: repeated.is_some(),
-            packed: packed.is_some(),
-        })
     }
 
     fn allows_rust_type(&self, ty: &syn::Type) -> bool {
