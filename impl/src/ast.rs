@@ -62,15 +62,6 @@ impl<'a> Struct<'a> {
     // build_match_in_parse は パーサーのmatch部の処理を組み立てます
     pub fn build_match_case(&self) -> proc_macro2::TokenStream {
         let build_parse_fields = self.fields.iter().map(|f| f.build_match_case());
-        // .try_fold(
-        //     Vec::new(),
-        //     |mut acc, r: syn::Result<proc_macro2::TokenStream>| {
-        //         r.and_then(|rr| {
-        //             acc.push(rr);
-        //             Ok(acc)
-        //         })
-        //     },
-        // )?;
         quote! {
             #(#build_parse_fields,)*
         }
@@ -97,26 +88,6 @@ impl<'a> Field<'a> {
         // TODO 番号がだぶってないかチェックする
         let attr = Attribute::from_syn(&f.attrs, f)?;
         let ty = &f.ty;
-        // match ty {
-        //     syn::Type::Array(_) => Err(syn::Error::new_spanned(&ty, "Array"))?,
-        //     syn::Type::BareFn(_) => Err(syn::Error::new_spanned(&ty, "BareFn"))?,
-        //     syn::Type::Group(_) => Err(syn::Error::new_spanned(&ty, "Group"))?,
-        //     syn::Type::ImplTrait(_) => Err(syn::Error::new_spanned(&ty, "ImplTrait"))?,
-        //     syn::Type::Infer(_) => Err(syn::Error::new_spanned(&ty, "Infer"))?,
-        //     syn::Type::Macro(_) => Err(syn::Error::new_spanned(&ty, "Macro"))?,
-        //     syn::Type::Never(_) => Err(syn::Error::new_spanned(&ty, "Never"))?,
-        //     syn::Type::Paren(_) => Err(syn::Error::new_spanned(&ty, "Paren"))?,
-        //     syn::Type::Path(_) => Err(syn::Error::new_spanned(&ty, "Path"))?,
-        //     syn::Type::Ptr(_) => Err(syn::Error::new_spanned(&ty, "Ptr"))?,
-        //     syn::Type::Reference(_) => Err(syn::Error::new_spanned(&ty, "Reference"))?,
-        //     syn::Type::Slice(_) => Err(syn::Error::new_spanned(&ty, "Slice"))?,
-        //     syn::Type::TraitObject(_) => Err(syn::Error::new_spanned(&ty, "TraitObject"))?,
-        //     syn::Type::Tuple(_) => Err(syn::Error::new_spanned(&ty, "Tuple"))?,
-        //     syn::Type::Verbatim(_) => Err(syn::Error::new_spanned(&ty, "Verbatim"))?,
-        //     syn::Type::__TestExhaustive(_) => {
-        //         Err(syn::Error::new_spanned(&ty, "__TestExhaustive"))?
-        //     }
-        // }
         if !attr.allows_rust_type(ty) {
             return Err(syn::Error::new_spanned(
                 ty,
