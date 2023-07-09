@@ -304,7 +304,7 @@ impl<'a> Attribute<'a> {
             )), // required
             (_, None) => Err(syn::Error::new_spanned(
                 original,
-                "def_type is required in #[def(\"...\")]",
+                "def_type is required in #[def(...)]",
             )), // required
             _ => Ok(Self {
                 original,
