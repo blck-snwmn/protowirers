@@ -1,4 +1,5 @@
 # protowirers
+[![test suite](https://github.com/blck-snwmn/protowirers/actions/workflows/ci.yml/badge.svg)](https://github.com/blck-snwmn/protowirers/actions/workflows/ci.yml)
 
 sampel to encode/decode binary wire format for protocol buffer messages
 
