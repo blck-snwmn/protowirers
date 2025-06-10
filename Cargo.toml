@@ -13,12 +13,11 @@ name = "tests"
 path = "tests/tests.rs"
 
 [dependencies]
-byteorder = "1"
-syn={ version = "2", features = ["full"] }
-proc-macro2="1.0"
+syn = { version = "2", features = ["full"] }
+proc-macro2 = "1.0"
 quote = "1.0"
 thiserror = "2.0"
 anyhow = "1.0"
-trybuild = { version = "1.0.81", features = ["diff"] }
+trybuild = { version = "1.0.105", features = ["diff"] }
 
-protowirers-impl={version="0.1.0", path = "impl"}
+protowirers-impl = { version = "0.1.0", path = "impl" }

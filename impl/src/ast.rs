@@ -15,7 +15,7 @@ impl<'a> Input<'a> {
 }
 
 pub struct Enum<'a> {
-    pub original: &'a syn::DeriveInput,
+    pub _original: &'a syn::DeriveInput,
     pub variants: Vec<&'a syn::Variant>,
 }
 
@@ -23,21 +23,21 @@ impl<'a> Enum<'a> {
     fn from_syn(node: &'a syn::DeriveInput, data: &'a syn::DataEnum) -> Self {
         use std::iter::FromIterator;
         Enum {
-            original: node,
+            _original: node,
             variants: Vec::from_iter(&data.variants),
         }
     }
 }
 
 pub struct Struct<'a> {
-    pub original: &'a syn::DeriveInput,
+    pub _original: &'a syn::DeriveInput,
     pub fields: Vec<Field<'a>>,
 }
 
 impl<'a> Struct<'a> {
     fn from_syn(node: &'a syn::DeriveInput, data: &'a syn::DataStruct) -> syn::Result<Self> {
         Ok(Struct {
-            original: node,
+            _original: node,
             fields: Field::from_syns(&data.fields)?,
         })
     }
@@ -173,7 +173,7 @@ impl<'a> Field<'a> {
     }
 }
 pub struct Attribute<'a> {
-    pub original: &'a syn::Attribute,
+    pub _original: &'a syn::Attribute,
     pub filed_num: u64,
     pub def_type: DefType,
     pub repeated: bool,
@@ -278,7 +278,7 @@ impl<'a> Attribute<'a> {
                 "def_type is required in #[def(...)]",
             )), // required
             _ => Ok(Self {
-                original,
+                _original: original,
                 filed_num: filed_num.unwrap(),
                 def_type: def_type.unwrap(),
                 repeated: repeated.is_some(),
