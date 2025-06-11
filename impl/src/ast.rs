@@ -21,10 +21,9 @@ pub struct Enum<'a> {
 
 impl<'a> Enum<'a> {
     fn from_syn(node: &'a syn::DeriveInput, data: &'a syn::DataEnum) -> Self {
-        use std::iter::FromIterator;
         Enum {
             _original: node,
-            variants: Vec::from_iter(&data.variants),
+            variants: data.variants.iter().collect(),
         }
     }
 }
