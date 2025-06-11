@@ -27,13 +27,13 @@ fn encode_variants<T: std::io::Write>(data: &mut T, input: u128) -> Result<()> {
 
 // calc_capacity return capacity of buffer
 fn calc_capacity(input: u128) -> usize {
-    let mut input = input;
-    let mut capacity = 0;
-    while input != 0 {
-        input >>= 7;
-        capacity += 1;
+    if input == 0 {
+        return 0;
     }
-    capacity
+    // Calculate the number of bits needed
+    let bits = 128 - input.leading_zeros();
+    // Calculate the number of 7-bit groups needed
+    bits.div_ceil(7) as usize
 }
 
 pub(crate) fn encode_repeat<T: std::io::Write>(data: &mut T, input: Vec<u128>) -> Result<()> {
@@ -399,21 +399,37 @@ mod tests {
     }
     #[test]
     fn test_calc_capacity() {
-        {
-            let input = 0b1;
-            let cap = calc_capacity(input);
-            assert_eq!(cap, 1);
-        }
-        {
-            let input = 0b1111111;
-            let cap = calc_capacity(input);
-            assert_eq!(cap, 1);
-        }
-        {
-            let input = 0b10000000;
-            let cap = calc_capacity(input);
-            assert_eq!(cap, 2);
-        }
+        // 0の場合
+        assert_eq!(calc_capacity(0), 0);
+
+        // 1-7ビット（1バイト必要）
+        assert_eq!(calc_capacity(0b1), 1);
+        assert_eq!(calc_capacity(0b1111111), 1); // 127
+
+        // 8-14ビット（2バイト必要）
+        assert_eq!(calc_capacity(0b10000000), 2); // 128
+        assert_eq!(calc_capacity(0b11111111), 2); // 255
+        assert_eq!(calc_capacity(0b11111111111111), 2); // 16383
+
+        // 15-21ビット（3バイト必要）
+        assert_eq!(calc_capacity(0b100000000000000), 3); // 16384
+        assert_eq!(calc_capacity(0b111111111111111111111), 3); // 2097151
+
+        // 22-28ビット（4バイト必要）
+        assert_eq!(calc_capacity(0b1000000000000000000000), 4); // 2097152
+        assert_eq!(calc_capacity(0b1111111111111111111111111111), 4); // 268435455
+
+        // 大きな値のテスト
+        assert_eq!(calc_capacity(u64::MAX as u128), 10);
+        assert_eq!(calc_capacity(u128::MAX), 19);
+
+        // 境界値のテスト（各バイト境界）
+        assert_eq!(calc_capacity((1 << 7) - 1), 1); // 127
+        assert_eq!(calc_capacity(1 << 7), 2); // 128
+        assert_eq!(calc_capacity((1 << 14) - 1), 2); // 16383
+        assert_eq!(calc_capacity(1 << 14), 3); // 16384
+        assert_eq!(calc_capacity((1 << 21) - 1), 3); // 2097151
+        assert_eq!(calc_capacity(1 << 21), 4); // 2097152
     }
 
     #[test]
