@@ -36,7 +36,7 @@ impl WireStruct {
             WireData::Bit32(b) => b.value.iter().all(|v| *v == 0),
         }
     }
-    pub fn new(field_number: FieldNumber, wire_type: WireData) -> Self {
+    pub const fn new(field_number: FieldNumber, wire_type: WireData) -> Self {
         WireStruct {
             field_number,
             wire_type,
@@ -122,7 +122,7 @@ pub struct WireDataVarint {
 }
 
 impl WireDataVarint {
-    pub fn new(v: u128) -> Self {
+    pub const fn new(v: u128) -> Self {
         // TODO 暫定でInt64をセット
         WireDataVarint { value: v }
     }
@@ -156,7 +156,7 @@ pub struct WireDataBit64 {
     pub value: [u8; 8],
 }
 impl WireDataBit64 {
-    pub fn new(v: [u8; 8]) -> Self {
+    pub const fn new(v: [u8; 8]) -> Self {
         // TODO 暫定でWireStringをセット
         WireDataBit64 { value: v }
     }
@@ -172,7 +172,7 @@ pub struct WireDataBit32 {
     pub value: [u8; 4],
 }
 impl WireDataBit32 {
-    pub fn new(v: [u8; 4]) -> Self {
+    pub const fn new(v: [u8; 4]) -> Self {
         // TODO 暫定でWireStringをセット
         WireDataBit32 { value: v }
     }
