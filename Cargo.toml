@@ -3,6 +3,7 @@ name = "protowirers"
 version = "0.2.0"
 authors = ["blck-snwmn <whitesnowmancreator@gmail.com>"]
 edition = "2021"
+rust-version = "1.74.0"
 
 [workspace]
 members = ["impl"]
