@@ -1,9 +1,6 @@
 use anyhow::Result;
 use std::convert::TryFrom;
-use std::{
-    io::{Cursor, Write},
-    u128,
-};
+use std::io::{Cursor, Write};
 
 use crate::wire::WireStruct;
 

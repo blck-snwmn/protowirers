@@ -29,6 +29,7 @@ pub(crate) fn decode(n: u128) -> i128 {
 pub trait ZigZag: Sized {
     type Output;
     fn encode(&self) -> Self::Output;
+    #[allow(dead_code)]
     fn decode(n: Self::Output) -> Self;
 }
 

@@ -1,7 +1,4 @@
-use std::{
-    io::{Cursor, Read, Seek, SeekFrom},
-    u128,
-};
+use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use crate::wire::*;
 
