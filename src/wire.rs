@@ -12,7 +12,7 @@ pub trait Proto {
 // alias　ではなく、タプル構造体にしたほうがよさそう
 pub type FieldNumber = u128;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WireStruct {
     field_number: FieldNumber,
     wire_type: WireData,

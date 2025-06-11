@@ -13,6 +13,10 @@ members = ["impl"]
 name = "tests"
 path = "tests/tests.rs"
 
+[[bench]]
+name = "encode_decode"
+harness = false
+
 [dependencies]
 syn = { version = "2", features = ["full"] }
 proc-macro2 = "1.0"
@@ -22,3 +26,6 @@ anyhow = "1.0"
 trybuild = { version = "1.0.105", features = ["diff"] }
 
 protowirers-impl = { version = "0.1.0", path = "impl" }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }

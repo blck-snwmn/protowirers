@@ -52,3 +52,13 @@ jobs:
       - name: Check MSRV
         run: cargo check --all-features
 
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
+      - name: Run benchmarks
+        run: cargo bench --bench encode_decode -- --quick
+
