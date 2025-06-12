@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::Result;
 use std::convert::TryFrom;
 use std::io::{Cursor, Write};
 
@@ -133,7 +133,7 @@ mod tests {
             // assert_eq!(c.position(), 2);
 
             let x: Vec<u8> = c.into_inner();
-            assert_eq!(x, vec![]);
+            assert_eq!(x, vec![] as Vec<u8>);
         }
         {
             {
@@ -160,7 +160,7 @@ mod tests {
         {
             let mut v = Vec::new();
             encode_repeat(&mut v, vec![]).unwrap();
-            assert_eq!(v, vec![]);
+            assert_eq!(v, vec![] as Vec<u8>);
         }
         {
             let mut v = Vec::new();

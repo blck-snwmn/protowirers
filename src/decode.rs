@@ -2,10 +2,10 @@ use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use crate::wire::*;
 
-use anyhow::Result;
+use crate::Result;
 use thiserror::Error;
 #[derive(Error, Debug)]
-enum DecodeError {
+pub enum DecodeError {
     #[error("unexpected format. end come after MSB is 0")]
     UnexpectFormat,
     #[allow(dead_code)]
@@ -365,6 +365,56 @@ mod tests {
             let mut c = Cursor::new(bytes);
             assert!(decode_wire_binary(&mut c).is_err());
         }
+    }
+
+    #[test]
+    fn test_decode_error_unexpected_wire_type() {
+        // 不正なwire type (6)を使用
+        let bytes: &[u8] = &[0b00110110, 0x00];
+        let mut c = Cursor::new(bytes);
+
+        let result = decode_struct(&mut c);
+        assert!(result.is_err());
+        match result {
+            Err(crate::ProtowiresError::Decode(DecodeError::UnexpectedWireDataValue(val))) => {
+                assert_eq!(val, 6);
+            }
+            _ => panic!("Expected UnexpectedWireDataValue error"),
+        }
+    }
+
+    #[test]
+    fn test_decode_error_truncated_varint() {
+        // 不完全なvarint（継続ビットが立っているが次のバイトがない）
+        let bytes: &[u8] = &[0b10001000];
+        let mut c = Cursor::new(bytes);
+
+        let result = decode_struct(&mut c);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_decode_error_truncated_length_delimited() {
+        // length-delimitedフィールドの長さが実際のデータより長い
+        let bytes: &[u8] = &[
+            0b00001010, // field 1, wire type 2
+            0b00001010, // length = 10
+            0x41, 0x42, // 実際のデータは2バイトのみ
+        ];
+        let mut c = Cursor::new(bytes);
+
+        let result = decode_struct(&mut c);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_decode_error_empty_input() {
+        let bytes: &[u8] = &[];
+        let mut c = Cursor::new(bytes);
+
+        let result = decode_wire_binary(&mut c);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 0);
     }
 
     #[test]

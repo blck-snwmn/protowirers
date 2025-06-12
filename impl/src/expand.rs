@@ -20,7 +20,7 @@ fn gen_struct(data: Struct, input_indent: syn::Ident) -> proc_macro2::TokenStrea
 
     quote! {
         impl protowirers::wire::Proto for #input_indent{
-            fn parse(bytes: &[u8])->anyhow::Result<Self>{
+            fn parse(bytes: &[u8])->protowirers::Result<Self>{
                 use protowirers::parser::*;
 
                 let mut c = std::io::Cursor::new(bytes);
@@ -37,7 +37,7 @@ fn gen_struct(data: Struct, input_indent: syn::Ident) -> proc_macro2::TokenStrea
                     #build_fields
                 })
             }
-            fn bytes(&self)-> anyhow::Result<Vec<u8>>{
+            fn bytes(&self)-> protowirers::Result<Vec<u8>>{
                 use protowirers::parser::*;
 
                 let inputs = vec![

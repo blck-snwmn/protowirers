@@ -1,6 +1,6 @@
+use crate::Result;
 use crate::{decode::decode_variants_slice, wire::*};
 use crate::{encode::encode_repeat, zigzag};
-use anyhow::Result;
 use std::convert::TryFrom;
 use thiserror::Error;
 
@@ -61,10 +61,10 @@ impl VariantToValue for i64 {
         match ty {
             TypeVairant::Int64 => {
                 if input > u64::MAX as u128 {
-                    return Err(anyhow::anyhow!(
-                        "unexpected value. this value is greater than {}(u64::MAX)",
-                        u64::MAX
-                    ));
+                    return Err(crate::ProtowiresError::ValueTooLarge {
+                        value: input,
+                        max: u64::MAX as u128,
+                    });
                 }
                 Ok(input as i64)
             }
@@ -184,10 +184,10 @@ impl<T: VariantEnum> VariantToValue for T {
         match ty {
             TypeVairant::Enum => {
                 if input > u32::MAX as u128 {
-                    return Err(anyhow::anyhow!(
-                        "unexpected value. this value is greater than {}(u64::MAX)",
-                        u32::MAX
-                    ));
+                    return Err(crate::ProtowiresError::ValueTooLarge {
+                        value: input,
+                        max: u32::MAX as u128,
+                    });
                 }
                 Ok((input as i32).into())
             }
@@ -492,7 +492,7 @@ impl Bit32ToValue for f32 {
     }
 }
 #[derive(Error, Debug)]
-enum ParseError {
+pub enum ParseError {
     #[error("unexpected type. got={got}, want={want}")]
     UnexpectTypeError { want: String, got: String },
 }
@@ -1067,5 +1067,88 @@ mod tests {
                 WireDataBit32::new([0b00000110, 0b10000001, 0b01001101, 0b01000000,])
             );
         }
+    }
+
+    #[test]
+    fn parse_error_type_mismatch() {
+        // u32にInt32タイプを渡す（Uint32を期待）
+        let result = Parser::<u32>::parse(&WireDataVarint::new(42), TypeVairant::Int32);
+        assert!(result.is_err());
+        match result {
+            Err(crate::ProtowiresError::Parse(ParseError::UnexpectTypeError { want, got })) => {
+                assert!(want.contains("Uint32"));
+                assert!(got.contains("Int32"));
+            }
+            _ => panic!("Expected parse error with type mismatch"),
+        }
+    }
+
+    #[test]
+    fn parse_error_invalid_enum_value() {
+        #[derive(Debug, PartialEq, Clone, Copy)]
+        enum TestEnum {
+            A,
+            B,
+        }
+
+        impl From<i32> for TestEnum {
+            fn from(v: i32) -> Self {
+                match v {
+                    0 => TestEnum::A,
+                    1 => TestEnum::B,
+                    _ => TestEnum::A, // デフォルト値
+                }
+            }
+        }
+
+        impl From<TestEnum> for i32 {
+            fn from(val: TestEnum) -> Self {
+                match val {
+                    TestEnum::A => 0,
+                    TestEnum::B => 1,
+                }
+            }
+        }
+
+        impl VariantEnum for TestEnum {}
+
+        // Enum用の大きすぎる値
+        let result = Parser::<TestEnum>::parse(
+            &WireDataVarint::new((u32::MAX as u128) + 1),
+            TypeVairant::Enum,
+        );
+        assert!(result.is_err());
+        match result {
+            Err(crate::ProtowiresError::ValueTooLarge { value, max }) => {
+                assert_eq!(value, (u32::MAX as u128) + 1);
+                assert_eq!(max, u32::MAX as u128);
+            }
+            _ => panic!("Expected ValueTooLarge error"),
+        }
+    }
+
+    #[test]
+    fn parse_bytes_type_mismatch() {
+        // Vec<u8>にStringタイプを渡す（Bytesを期待）
+        let result = Parser::<Vec<u8>>::parse(
+            &WireDataLengthDelimited::new(vec![0x41, 0x42]),
+            TypeLengthDelimited::WireString,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_packed_repeated_error() {
+        // packed repeatedで不正なデータ
+        let invalid_data = vec![
+            0b10000000, 0b10000100, 0b10101111, 0b01011111, 0b00000100, 0b10000110,
+        ];
+        let result = Parser::<Vec<u32>>::parse(
+            &WireDataLengthDelimited::new(invalid_data),
+            TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant(
+                TypeVairant::Uint32,
+            )),
+        );
+        assert!(result.is_err());
     }
 }

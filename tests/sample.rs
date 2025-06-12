@@ -5,9 +5,9 @@ struct Sample {
     // #[proto_def(field_num=2, p_type=sint64)]
     x: i64,
 }
-use anyhow::Result;
 use protowirers::parser::Parser;
 use protowirers::wire::*;
+use protowirers::Result;
 use protowirers::{decode, encode};
 use std::io::Cursor;
 impl Sample {

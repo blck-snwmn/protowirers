@@ -272,3 +272,125 @@ fn test_repeated_field() {
     assert_eq!(x.str_field, "abc");
     assert_eq!(x.vec_field, vec![100000001, 2, 3,]);
 }
+
+#[test]
+fn test_parse_error_invalid_wire_type() {
+    #[derive(Proto)]
+    struct Sample {
+        #[def(field_num = 1, def_type = "uint32")]
+        value: u32,
+    }
+
+    // フィールド番号1にLengthDelimitedタイプ(0b00000010)のデータを送信
+    // uint32はVarintタイプ(0b00000000)を期待
+    // しかし、未知のフィールドは無視されるので、
+    // valueフィールドはデフォルト値(0)になる
+    let bytes: &[u8] = &[0b00001010, 0b00000001, 0xFF];
+    let result = Sample::parse(bytes);
+
+    // パースは成功するが、valueフィールドはデフォルト値
+    assert!(result.is_ok());
+    let sample = result.unwrap();
+    assert_eq!(sample.value, 0);
+}
+
+#[test]
+fn test_parse_error_truncated_data() {
+    #[derive(Proto)]
+    struct Sample {
+        #[def(field_num = 1, def_type = "string")]
+        value: String,
+    }
+
+    // 長さ10を指定するが、実際のデータは3バイトしかない
+    let bytes: &[u8] = &[0b00001010, 0b00001010, 0x41, 0x42, 0x43];
+    let result = Sample::parse(bytes);
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_parse_error_invalid_utf8() {
+    #[derive(Proto)]
+    struct Sample {
+        #[def(field_num = 1, def_type = "string")]
+        value: String,
+    }
+
+    // 不正なUTF-8シーケンス
+    let bytes: &[u8] = &[0b00001010, 0b00000011, 0xFF, 0xFE, 0xFD];
+    let result = Sample::parse(bytes);
+
+    assert!(result.is_err());
+    match result {
+        Err(ProtowiresError::FromUtf8(_)) => {}
+        _ => panic!("Expected UTF-8 error"),
+    }
+}
+
+#[test]
+fn test_parse_error_value_too_large() {
+    #[derive(Proto)]
+    struct Sample {
+        #[def(field_num = 1, def_type = "uint32")]
+        value: u32,
+    }
+
+    // u32::MAXを超える値
+    let bytes: &[u8] = &[
+        0b00001000, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b00010000,
+    ];
+    let result = Sample::parse(bytes);
+
+    assert!(result.is_err());
+    match result {
+        Err(ProtowiresError::TryFromInt(_)) => {
+            // u32の範囲を超える値はTryFromIntErrorとして処理される
+        }
+        _ => panic!("Expected TryFromInt error"),
+    }
+}
+
+#[test]
+fn test_encode_error_embedded_message() {
+    #[derive(Proto, Default, Clone)]
+    struct Inner {
+        #[def(field_num = 1, def_type = "string")]
+        value: String,
+    }
+
+    #[derive(Proto)]
+    struct Outer {
+        #[def(field_num = 1, def_type = "embedded")]
+        inner: Inner,
+    }
+
+    // 正常なケース
+    let outer = Outer {
+        inner: Inner {
+            value: "test".to_string(),
+        },
+    };
+
+    assert!(outer.bytes().is_ok());
+}
+
+#[test]
+fn test_repeated_packed_parse_error() {
+    #[derive(Proto)]
+    struct Sample {
+        #[def(field_num = 1, def_type = "sint32", repeated, packed)]
+        values: Vec<i32>,
+    }
+
+    // packed repeatedフィールドに不正なvarintデータ
+    let bytes: &[u8] = &[
+        0b00001010, // field 1, wire type 2 (length-delimited)
+        0b00000110, // length = 6
+        0b10000001, 0b10000001, 0b10000001, 0b10000001, 0b10000001,
+        0b00000001, // 不正なvarint
+    ];
+
+    let result = Sample::parse(bytes);
+    assert!(result.is_err());
+}
