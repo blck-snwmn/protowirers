@@ -27,11 +27,7 @@ impl VariantToValue for i32 {
                 let u = TryFrom::try_from(result)?;
                 Ok(u)
             }
-            TypeVairant::Sint32 => {
-                let decoded = zigzag::decode(input);
-                let u = TryFrom::try_from(decoded)?;
-                Ok(u)
-            }
+            TypeVairant::Sint32 => zigzag::decode::<i32>(input),
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?} or {:?}",TypeVairant::Int32, TypeVairant::Sint32},
                 got: format! {"{:?}", ty},
@@ -68,11 +64,7 @@ impl VariantToValue for i64 {
                 }
                 Ok(input as i64)
             }
-            TypeVairant::Sint64 => {
-                let decoded = zigzag::decode(input);
-                let u = TryFrom::try_from(decoded)?;
-                Ok(u)
-            }
+            TypeVairant::Sint64 => zigzag::decode::<i64>(input),
             _ => Err(ParseError::UnexpectTypeError {
                 want: format! {"{:?} or {:?}",TypeVairant::Int64, TypeVairant::Sint64},
                 got: format! {"{:?}", ty},

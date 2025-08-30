@@ -1,34 +1,41 @@
+use anyhow::Result;
+
 pub(crate) fn encode<T: ZigZag>(n: T) -> T::Output {
     n.encode()
 }
 
-// こういうdecode()も書けるが、decode文脈だと入力がu128なので、合わない。。。
-// pub(crate) fn decode<T: ZigZag>(n: T::Output) -> T {
-//     ZigZag::decode(n)
-// }
-
-pub(crate) fn decode(n: u128) -> i128 {
+/// Varint(u128) を ZigZag 復号し i128 を返します（範囲チェックなしの内部用）。
+pub(crate) fn decode_raw(n: u128) -> i128 {
     let r = (n >> 1) as i128;
     let l = (n & 1) as i128;
     r ^ -l
 }
 
-// pub(crate) fn decode_ex<T, U, V>(n: T) -> V
-// where
-//     T: std::ops::BitAnd<Output = U> + std::ops::Shr<Output = U> + Copy + From<usize>,
-//     U: std::ops::Neg<Output = U> + std::ops::BitXor<Output = V>,
-// {
-//     let x: T = 1.into();
-//     let r = n >> x;
-//     let l = n & x;
-//     let l = -l;
-//     let r = r ^ l;
-//     r
-// }
+/// ZigZag 復号後に目標型へ変換します。範囲外の場合は Err を返します。
+pub(crate) fn decode<T>(n: u128) -> Result<T>
+where
+    T: std::convert::TryFrom<i128>,
+    <T as std::convert::TryFrom<i128>>::Error: std::error::Error + Send + Sync + 'static,
+{
+    let v = decode_raw(n);
+    let r = std::convert::TryFrom::try_from(v)?;
+    Ok(r)
+}
 
+/// ZigZag のエンコードを提供するトレイト（decode は自由関数として提供）。
 pub trait ZigZag: Sized {
     type Output;
     fn encode(&self) -> Self::Output;
+
+    // 理由: `ZigZag` に `decode` を持たせない
+    // - デコードの起点は常に Varint の `u128` 値。
+    //   まず `u128` を ZigZag 復号して `i128` を得るのが自然。
+    //   そのため decode は `decode_raw(u128) -> i128` と
+    //   `decode<T: TryFrom<i128>>(u128) -> Result<T>` の自由関数で提供する。
+    // - `ZigZag::decode(Output)` を追加すると、
+    //   `u128` → `Output(u32/u64)` の安全な前段変換やジェネリクスが必要になり、
+    //   読みやすさ・保守性を下げる。
+    // - 結論: トレイトはエンコード専用（`encode(&self)` のみ）。デコードは自由関数で扱う。
 }
 
 macro_rules! zigzag_impl {
@@ -89,12 +96,12 @@ mod tests {
     }
     #[test]
     fn test_decode_zigzag() {
-        assert_eq!(decode(0), 0);
-        assert_eq!(decode(1), -1);
-        assert_eq!(decode(2), 1);
-        assert_eq!(decode(3), -2);
-        assert_eq!(decode(4), 2);
-        assert_eq!(decode(4294967294), 2147483647);
-        assert_eq!(decode(4294967295), -2147483648);
+        assert_eq!(decode_raw(0), 0);
+        assert_eq!(decode_raw(1), -1);
+        assert_eq!(decode_raw(2), 1);
+        assert_eq!(decode_raw(3), -2);
+        assert_eq!(decode_raw(4), 2);
+        assert_eq!(decode_raw(4294967294), 2147483647);
+        assert_eq!(decode_raw(4294967295), -2147483648);
     }
 }
