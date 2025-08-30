@@ -5,3 +5,5 @@ pub mod wire;
 mod zigzag;
 
 pub use protowirers_impl::*;
+pub mod error;
+pub use error::{Error, Result};

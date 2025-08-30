@@ -5,7 +5,7 @@ struct Sample {
     // #[proto_def(field_num=2, p_type=sint64)]
     x: i64,
 }
-use anyhow::Result;
+use protowirers::Result;
 use protowirers::parser::Parser;
 use protowirers::wire::*;
 use protowirers::{decode, encode};

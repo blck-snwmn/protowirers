@@ -1,19 +1,7 @@
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use crate::wire::*;
-
-use anyhow::Result;
-use thiserror::Error;
-#[derive(Error, Debug)]
-enum DecodeError {
-    #[error("unexpected format. end come after MSB is 0")]
-    UnexpectFormat,
-    #[allow(dead_code)]
-    #[error("unexpected red size. got={0}, want={1}")]
-    UnexpectRepeatSize(u128, u128),
-    #[error("no expected type value. got={0}")]
-    UnexpectedWireDataValue(u128),
-}
+use crate::{Error, Result};
 
 fn decode_variants<T: Read>(data: &mut T) -> Result<u128> {
     // iterate take_util とかでもできるよ
@@ -23,7 +11,7 @@ fn decode_variants<T: Read>(data: &mut T) -> Result<u128> {
         let mut buf = [0; 1];
         let result = data.read_exact(&mut buf);
         if result.is_err() {
-            return Err(DecodeError::UnexpectFormat.into());
+            return Err(Error::UnexpectedFormat);
         }
         // MSB は後続のバイトが続くかどうかの判定に使われる
         // 1 の場合、後続が続く
@@ -93,7 +81,7 @@ fn decode_struct(data: &mut Cursor<&[u8]>) -> Result<WireStruct> {
         // 3=>WireData::StartGroup,
         // 4=>WireData::EndGroup,
         5 => Ok(WireData::Bit32(WireDataBit32::new(decode_32bit(data)?))),
-        _ => Err(DecodeError::UnexpectedWireDataValue(wire_type)),
+        _ => Err(Error::UnexpectedWireDataValue(wire_type)),
     }?;
     Ok(WireStruct::new(field_num, wt))
 }

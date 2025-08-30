@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::Result;
 
 pub(crate) fn encode<T: ZigZag>(n: T) -> T::Output {
     n.encode()
@@ -15,10 +15,10 @@ pub(crate) fn decode_raw(n: u128) -> i128 {
 pub(crate) fn decode<T>(n: u128) -> Result<T>
 where
     T: std::convert::TryFrom<i128>,
-    <T as std::convert::TryFrom<i128>>::Error: std::error::Error + Send + Sync + 'static,
+    <T as std::convert::TryFrom<i128>>::Error: Into<crate::Error>,
 {
     let v = decode_raw(n);
-    let r = std::convert::TryFrom::try_from(v)?;
+    let r = std::convert::TryFrom::try_from(v).map_err(Into::into)?;
     Ok(r)
 }
 

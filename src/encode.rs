@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::Result;
 use std::convert::TryFrom;
 use std::io::{Cursor, Write};
 

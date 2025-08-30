@@ -28,8 +28,8 @@ struct Sample {
 Implement the following function
 
 ```rust
-fn parse(bytes: &[u8])->anyhow::Result<Self>{}
-fn bytes(&self)-> anyhow::Result<Vec<u8>>{}
+fn parse(bytes: &[u8]) -> protowirers::Result<Self> {}
+fn bytes(&self) -> protowirers::Result<Vec<u8>> {}
 ```
 
 ### Enum

@@ -1,5 +1,5 @@
 use crate::zigzag::ZigZag;
-use anyhow::Result;
+use crate::Result;
 use std::fmt::Display;
 
 pub trait Proto {

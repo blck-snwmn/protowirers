@@ -1,8 +1,7 @@
 use crate::{decode::decode_variants_slice, wire::*};
 use crate::{encode::encode_repeat, zigzag};
-use anyhow::Result;
+use crate::{Error, Result};
 use std::convert::TryFrom;
-use thiserror::Error;
 
 pub trait VariantEnum: Sized + From<i32> + Into<i32> + Copy {
     fn from_i32(input: i32) -> Self {
@@ -28,11 +27,10 @@ impl VariantToValue for i32 {
                 Ok(u)
             }
             TypeVairant::Sint32 => zigzag::decode::<i32>(input),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?} or {:?}",TypeVairant::Int32, TypeVairant::Sint32},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?} or {:?}", TypeVairant::Int32, TypeVairant::Sint32),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
@@ -43,11 +41,10 @@ impl VariantToValue for i32 {
                 VariantToValue::to_variant(&x, TypeVairant::Int64)
             }
             TypeVairant::Sint32 => Ok(zigzag::encode(*self) as u128),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?} or {:?}",TypeVairant::Int32, TypeVairant::Sint32},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?} or {:?}", TypeVairant::Int32, TypeVairant::Sint32),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -57,19 +54,15 @@ impl VariantToValue for i64 {
         match ty {
             TypeVairant::Int64 => {
                 if input > u64::MAX as u128 {
-                    return Err(anyhow::anyhow!(
-                        "unexpected value. this value is greater than {}(u64::MAX)",
-                        u64::MAX
-                    ));
+                    return Err(Error::ValueTooLarge { ty: "u64", max: u64::MAX as u128 });
                 }
                 Ok(input as i64)
             }
             TypeVairant::Sint64 => zigzag::decode::<i64>(input),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?} or {:?}",TypeVairant::Int64, TypeVairant::Sint64},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?} or {:?}", TypeVairant::Int64, TypeVairant::Sint64),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
@@ -78,11 +71,10 @@ impl VariantToValue for i64 {
             // u64に一度キャストすることにより、内部の保持しているバイト数を64bitに合わせる
             TypeVairant::Int64 => Ok(*self as u64 as u128),
             TypeVairant::Sint64 => Ok(zigzag::encode(*self) as u128),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?} or {:?}",TypeVairant::Int64, TypeVairant::Sint64},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?} or {:?}", TypeVairant::Int64, TypeVairant::Sint64),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -94,22 +86,20 @@ impl VariantToValue for u32 {
                 let u = TryFrom::try_from(input)?;
                 Ok(u)
             }
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeVairant::Uint32},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeVairant::Uint32),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
     fn to_variant(&self, ty: TypeVairant) -> Result<u128> {
         match ty {
             TypeVairant::Uint32 => Ok(*self as u128),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeVairant::Uint32},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeVairant::Uint32),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -121,22 +111,20 @@ impl VariantToValue for u64 {
                 let u = TryFrom::try_from(input)?;
                 Ok(u)
             }
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeVairant::Uint64},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeVairant::Uint64),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
     fn to_variant(&self, ty: TypeVairant) -> Result<u128> {
         match ty {
             TypeVairant::Uint64 => Ok(*self as u128),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeVairant::Uint64},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeVairant::Uint64),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -145,11 +133,10 @@ impl VariantToValue for bool {
     fn from_valint(input: u128, ty: TypeVairant) -> Result<Self> {
         match ty {
             TypeVairant::Bool => Ok(input != 0),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeVairant::Bool},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeVairant::Bool),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
@@ -162,11 +149,10 @@ impl VariantToValue for bool {
                     Ok(0)
                 }
             }
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeVairant::Bool},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeVairant::Bool),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -176,29 +162,24 @@ impl<T: VariantEnum> VariantToValue for T {
         match ty {
             TypeVairant::Enum => {
                 if input > u32::MAX as u128 {
-                    return Err(anyhow::anyhow!(
-                        "unexpected value. this value is greater than {}(u64::MAX)",
-                        u32::MAX
-                    ));
+                    return Err(Error::ValueTooLarge { ty: "u32", max: u32::MAX as u128 });
                 }
                 Ok((input as i32).into())
             }
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeVairant::Enum},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeVairant::Enum),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
     fn to_variant(&self, ty: TypeVairant) -> Result<u128> {
         match ty {
             TypeVairant::Enum => Ok(self.into_i32() as u128),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeVairant::Enum},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeVairant::Enum),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -212,22 +193,20 @@ impl Bit64ToValue for i64 {
     fn from_bit64(input: [u8; 8], ty: TypeBit64) -> Result<Self> {
         match ty {
             TypeBit64::Sfixed64 => Ok(i64::from_le_bytes(input)),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeBit64::Sfixed64},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeBit64::Sfixed64),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
     fn to_bit64(&self, ty: TypeBit64) -> Result<[u8; 8]> {
         match ty {
             TypeBit64::Sfixed64 => Ok(self.to_le_bytes()),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeBit64::Sfixed64},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeBit64::Sfixed64),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -236,22 +215,20 @@ impl Bit64ToValue for u64 {
     fn from_bit64(input: [u8; 8], ty: TypeBit64) -> Result<Self> {
         match ty {
             TypeBit64::Fixed64 => Ok(u64::from_le_bytes(input)),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeBit64::Fixed64},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeBit64::Fixed64),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
     fn to_bit64(&self, ty: TypeBit64) -> Result<[u8; 8]> {
         match ty {
             TypeBit64::Fixed64 => Ok(self.to_le_bytes()),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeBit64::Fixed64},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeBit64::Fixed64),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -260,22 +237,20 @@ impl Bit64ToValue for f64 {
     fn from_bit64(input: [u8; 8], ty: TypeBit64) -> Result<Self> {
         match ty {
             TypeBit64::Double => Ok(f64::from_le_bytes(input)),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeBit64::Double},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeBit64::Double),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
     fn to_bit64(&self, ty: TypeBit64) -> Result<[u8; 8]> {
         match ty {
             TypeBit64::Double => Ok(self.to_le_bytes()),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeBit64::Double},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeBit64::Double),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -289,11 +264,10 @@ pub trait LengthDelimitedToValue: Sized {
 impl LengthDelimitedToValue for String {
     fn from_length_delimited(input: Vec<u8>, ty: TypeLengthDelimited) -> Result<Self> {
         if !matches!(ty, TypeLengthDelimited::WireString) {
-            return Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeLengthDelimited::WireString},
-                got: format! {"{:?}", ty},
-            }
-            .into());
+            return Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeLengthDelimited::WireString),
+                got: format!("{:?}", ty),
+            });
         }
         let s = String::from_utf8(input)?;
         Ok(s)
@@ -301,11 +275,10 @@ impl LengthDelimitedToValue for String {
 
     fn into_length_delimited(self, ty: TypeLengthDelimited) -> Result<Vec<u8>> {
         if !matches!(ty, TypeLengthDelimited::WireString) {
-            return Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeLengthDelimited::WireString},
-                got: format! {"{:?}", ty},
-            }
-            .into());
+            return Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeLengthDelimited::WireString),
+                got: format!("{:?}", ty),
+            });
         }
         Ok(self.into())
     }
@@ -326,12 +299,12 @@ impl<T: VariantToValue> LengthDelimitedToValue for Vec<T> {
                     })?;
                 Ok(x)
             }
-            _ => Err(ParseError::UnexpectTypeError {
-                want: "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
-                    .to_string(),
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want:
+                    "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
+                        .to_string(),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
@@ -348,12 +321,12 @@ impl<T: VariantToValue> LengthDelimitedToValue for Vec<T> {
                 encode_repeat(&mut v, input)?;
                 Ok(v)
             }
-            _ => Err(ParseError::UnexpectTypeError {
-                want: "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
-                    .to_string(),
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want:
+                    "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
+                        .to_string(),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -362,22 +335,20 @@ impl LengthDelimitedToValue for Vec<u8> {
     fn from_length_delimited(input: Vec<u8>, ty: TypeLengthDelimited) -> Result<Self> {
         match ty {
             TypeLengthDelimited::Bytes => Ok(input),
-            _ => Err(ParseError::UnexpectTypeError {
+            _ => Err(Error::UnexpectedType {
                 want: "TypeLengthDelimited::Bytes".to_string(),
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
     fn into_length_delimited(self, ty: TypeLengthDelimited) -> Result<Vec<u8>> {
         match ty {
             TypeLengthDelimited::Bytes => Ok(self),
-            _ => Err(ParseError::UnexpectTypeError {
+            _ => Err(Error::UnexpectedType {
                 want: "TypeLengthDelimited::Bytes".to_string(),
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -385,11 +356,10 @@ impl LengthDelimitedToValue for Vec<u8> {
 impl<T: Proto> LengthDelimitedToValue for T {
     fn from_length_delimited(input: Vec<u8>, ty: TypeLengthDelimited) -> Result<Self> {
         if !matches!(ty, TypeLengthDelimited::EmbeddedMessages) {
-            return Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}", TypeLengthDelimited::EmbeddedMessages},
-                got: format! {"{:?}", ty},
-            }
-            .into());
+            return Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeLengthDelimited::EmbeddedMessages),
+                got: format!("{:?}", ty),
+            });
         }
         let r = T::parse(input.as_slice())?;
         Ok(r)
@@ -397,11 +367,10 @@ impl<T: Proto> LengthDelimitedToValue for T {
 
     fn into_length_delimited(self, ty: TypeLengthDelimited) -> Result<Vec<u8>> {
         if !matches!(ty, TypeLengthDelimited::EmbeddedMessages) {
-            return Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}", TypeLengthDelimited::EmbeddedMessages},
-                got: format! {"{:?}", ty},
-            }
-            .into());
+            return Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeLengthDelimited::EmbeddedMessages),
+                got: format!("{:?}", ty),
+            });
         }
         self.bytes()
     }
@@ -416,22 +385,20 @@ impl Bit32ToValue for i32 {
     fn from_bit64(input: [u8; 4], ty: TypeBit32) -> Result<Self> {
         match ty {
             TypeBit32::Sfixed32 => Ok(i32::from_le_bytes(input)),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeBit32::Sfixed32},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeBit32::Sfixed32),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
     fn to_bit64(&self, ty: TypeBit32) -> Result<[u8; 4]> {
         match ty {
             TypeBit32::Sfixed32 => Ok(self.to_le_bytes()),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeBit32::Sfixed32},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeBit32::Sfixed32),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -440,22 +407,20 @@ impl Bit32ToValue for u32 {
     fn from_bit64(input: [u8; 4], ty: TypeBit32) -> Result<Self> {
         match ty {
             TypeBit32::Fixed32 => Ok(u32::from_le_bytes(input)),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeBit32::Fixed32},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeBit32::Fixed32),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
     fn to_bit64(&self, ty: TypeBit32) -> Result<[u8; 4]> {
         match ty {
             TypeBit32::Fixed32 => Ok(self.to_le_bytes()),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}",TypeBit32::Fixed32},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeBit32::Fixed32),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
@@ -464,30 +429,24 @@ impl Bit32ToValue for f32 {
     fn from_bit64(input: [u8; 4], ty: TypeBit32) -> Result<Self> {
         match ty {
             TypeBit32::Float => Ok(f32::from_le_bytes(input)),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}", TypeBit32::Float},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeBit32::Float),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 
     fn to_bit64(&self, ty: TypeBit32) -> Result<[u8; 4]> {
         match ty {
             TypeBit32::Float => Ok(self.to_le_bytes()),
-            _ => Err(ParseError::UnexpectTypeError {
-                want: format! {"{:?}", TypeBit32::Float},
-                got: format! {"{:?}", ty},
-            }
-            .into()),
+            _ => Err(Error::UnexpectedType {
+                want: format!("{:?}", TypeBit32::Float),
+                got: format!("{:?}", ty),
+            }),
         }
     }
 }
-#[derive(Error, Debug)]
-enum ParseError {
-    #[error("unexpected type. got={got}, want={want}")]
-    UnexpectTypeError { want: String, got: String },
-}
+// Note: Local ParseError removed; unified into crate::Error.
 
 pub trait Parser<Output>: Sized {
     type Type;
