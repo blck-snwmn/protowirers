@@ -1,14 +1,11 @@
 use anyhow::Result;
 use std::convert::TryFrom;
-use std::{
-    io::{Cursor, Write},
-    u128,
-};
+use std::io::{Cursor, Write};
 
 use crate::wire::WireStruct;
 
 // encode_variants decode varint format
-fn encode_variants<T: std::io::Write>(data: &mut T, input: u128) -> Result<()> {
+fn encode_variants<T: Write>(data: &mut T, input: u128) -> Result<()> {
     let mut buf: Vec<u8> = Vec::with_capacity(calc_capacity(input));
     let mut input = input;
     loop {

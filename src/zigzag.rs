@@ -29,7 +29,6 @@ pub(crate) fn decode(n: u128) -> i128 {
 pub trait ZigZag: Sized {
     type Output;
     fn encode(&self) -> Self::Output;
-    fn decode(n: Self::Output) -> Self;
 }
 
 macro_rules! zigzag_impl {
@@ -38,11 +37,6 @@ macro_rules! zigzag_impl {
             type Output = $OUT;
             fn encode(&self) -> Self::Output {
                 ((self << 1) ^ (self >> (<$OUT>::BITS - 1))) as Self::Output
-            }
-            fn decode(n: Self::Output) -> Self {
-                let r = (n >> 1) as Self;
-                let l = (n & 1) as Self;
-                r ^ -l
             }
         }
     };

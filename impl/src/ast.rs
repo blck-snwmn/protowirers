@@ -15,29 +15,25 @@ impl<'a> Input<'a> {
 }
 
 pub struct Enum<'a> {
-    pub original: &'a syn::DeriveInput,
     pub variants: Vec<&'a syn::Variant>,
 }
 
 impl<'a> Enum<'a> {
-    fn from_syn(node: &'a syn::DeriveInput, data: &'a syn::DataEnum) -> Self {
+    fn from_syn(_node: &'a syn::DeriveInput, data: &'a syn::DataEnum) -> Self {
         use std::iter::FromIterator;
         Enum {
-            original: node,
             variants: Vec::from_iter(&data.variants),
         }
     }
 }
 
 pub struct Struct<'a> {
-    pub original: &'a syn::DeriveInput,
     pub fields: Vec<Field<'a>>,
 }
 
 impl<'a> Struct<'a> {
-    fn from_syn(node: &'a syn::DeriveInput, data: &'a syn::DataStruct) -> syn::Result<Self> {
+    fn from_syn(_node: &'a syn::DeriveInput, data: &'a syn::DataStruct) -> syn::Result<Self> {
         Ok(Struct {
-            original: node,
             fields: Field::from_syns(&data.fields)?,
         })
     }
@@ -78,7 +74,7 @@ impl<'a> Struct<'a> {
 
 pub struct Field<'a> {
     pub original: &'a syn::Field,
-    pub attr: Attribute<'a>,
+    pub attr: Attribute,
 }
 impl<'a> Field<'a> {
     fn from_syns(data: &'a syn::Fields) -> syn::Result<Vec<Self>> {
@@ -172,17 +168,16 @@ impl<'a> Field<'a> {
         }
     }
 }
-pub struct Attribute<'a> {
-    pub original: &'a syn::Attribute,
+pub struct Attribute {
     pub filed_num: u64,
     pub def_type: DefType,
     pub repeated: bool,
     pub packed: bool,
 }
 
-impl<'a> Attribute<'a> {
-    fn from_syn(attrs: &'a [syn::Attribute], with_field: &syn::Field) -> syn::Result<Self> {
-        let mut a: Vec<(&'a syn::Attribute, syn::MetaList)> = attrs
+impl Attribute {
+    fn from_syn(attrs: &[syn::Attribute], with_field: &syn::Field) -> syn::Result<Self> {
+        let mut a: Vec<(&syn::Attribute, syn::MetaList)> = attrs
             .iter()
             .filter_map(|attr| match attr.meta {
                 syn::Meta::List(ref ml) if ml.path.is_ident("def") => Some((attr, ml.clone())),
@@ -201,7 +196,7 @@ impl<'a> Attribute<'a> {
             ));
         }
 
-        let (original, meta_list): (&'a syn::Attribute, syn::MetaList) = a.remove(0);
+        let (original, meta_list): (&syn::Attribute, syn::MetaList) = a.remove(0);
 
         let mut filed_num: Option<u64> = None;
         let mut def_type: Option<DefType> = None;
@@ -278,7 +273,6 @@ impl<'a> Attribute<'a> {
                 "def_type is required in #[def(...)]",
             )), // required
             _ => Ok(Self {
-                original,
                 filed_num: filed_num.unwrap(),
                 def_type: def_type.unwrap(),
                 repeated: repeated.is_some(),

@@ -1,7 +1,4 @@
-use std::{
-    io::{Cursor, Read, Seek, SeekFrom},
-    u128,
-};
+use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use crate::wire::*;
 
@@ -18,7 +15,7 @@ enum DecodeError {
     UnexpectedWireDataValue(u128),
 }
 
-fn decode_variants<T: std::io::Read>(data: &mut T) -> Result<u128> {
+fn decode_variants<T: Read>(data: &mut T) -> Result<u128> {
     // iterate take_util とかでもできるよ
     let mut sum = 0;
     let mut loop_count = 0;
