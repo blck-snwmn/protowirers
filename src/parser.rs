@@ -54,7 +54,10 @@ impl VariantToValue for i64 {
         match ty {
             TypeVairant::Int64 => {
                 if input > u64::MAX as u128 {
-                    return Err(Error::ValueTooLarge { ty: "u64", max: u64::MAX as u128 });
+                    return Err(Error::ValueTooLarge {
+                        ty: "u64",
+                        max: u64::MAX as u128,
+                    });
                 }
                 Ok(input as i64)
             }
@@ -162,7 +165,10 @@ impl<T: VariantEnum> VariantToValue for T {
         match ty {
             TypeVairant::Enum => {
                 if input > u32::MAX as u128 {
-                    return Err(Error::ValueTooLarge { ty: "u32", max: u32::MAX as u128 });
+                    return Err(Error::ValueTooLarge {
+                        ty: "u32",
+                        max: u32::MAX as u128,
+                    });
                 }
                 Ok((input as i32).into())
             }
@@ -300,9 +306,8 @@ impl<T: VariantToValue> LengthDelimitedToValue for Vec<T> {
                 Ok(x)
             }
             _ => Err(Error::UnexpectedType {
-                want:
-                    "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
-                        .to_string(),
+                want: "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
+                    .to_string(),
                 got: format!("{:?}", ty),
             }),
         }
@@ -322,9 +327,8 @@ impl<T: VariantToValue> LengthDelimitedToValue for Vec<T> {
                 Ok(v)
             }
             _ => Err(Error::UnexpectedType {
-                want:
-                    "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
-                        .to_string(),
+                want: "TypeLengthDelimited::PackedRepeatedFields(AllowedPakcedType::Variant())"
+                    .to_string(),
                 got: format!("{:?}", ty),
             }),
         }
