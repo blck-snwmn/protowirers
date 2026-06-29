@@ -8,4 +8,10 @@ error: cannot find attribute `defx` in this scope
  --> $DIR/no_def_attribute.rs:5:7
   |
 5 |     #[defx(field_num = 1, def_type = "int32")]
-  |       ^^^^ help: a derive helper attribute with a similar name exists: `def`
+  |       ^^^^
+  |
+help: a derive helper attribute with a similar name exists
+  |
+5 -     #[defx(field_num = 1, def_type = "int32")]
+5 +     #[def(field_num = 1, def_type = "int32")]
+  |
