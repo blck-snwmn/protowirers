@@ -13,7 +13,7 @@ jobs:
         with:
           persist-credentials: false
       - run: rustup toolchain install
-      - run: cargo test --all-features
+      - run: cargo test --locked --all-features
 
   fmt:
     name: cargo fmt
@@ -33,4 +33,4 @@ jobs:
         with:
           persist-credentials: false
       - run: rustup toolchain install
-      - run: cargo clippy --all-features -- -D warnings
+      - run: cargo clippy --locked --all-features -- -D warnings
