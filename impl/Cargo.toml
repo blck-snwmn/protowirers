@@ -10,7 +10,7 @@ proc-macro = true
 
 [dependencies]
 byteorder = "=1.5.0"
-syn={ version = "=3.0.9", features = ["full"] }
+syn={ version = "=3.0.10", features = ["full"] }
 proc-macro2="=1.0.107"
 quote = "=1.0.47"
 thiserror = "=2.0.21"
