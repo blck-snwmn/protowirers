@@ -18,6 +18,6 @@ syn={ version = "=3.0.10", features = ["full"] }
 proc-macro2="=1.0.107"
 quote = "=1.0.47"
 thiserror = "=2.0.21"
-trybuild = { version = "=1.0.123", features = ["diff"] }
+trybuild = { version = "=1.0.125", features = ["diff"] }
 
 protowirers-impl={version="0.1.0", path = "impl"}
